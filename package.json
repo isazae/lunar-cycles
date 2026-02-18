@@ -1,0 +1,18 @@
+{
+  "name": "lunar-cycles",
+  "version": "0.1.0",
+  "description": "A PWA for visualizing the three fundamental lunar cycles",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "suncalc": "^1.9.0",
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
