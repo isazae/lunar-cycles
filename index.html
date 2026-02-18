@@ -143,13 +143,29 @@
 
         <div id="dome-container" class="dome-container">
           <div class="dome-zoom-controls">
-            <button class="dome-zoom-btn" id="dome-zoom-in"  title="Zoom in">+</button>
-            <button class="dome-zoom-btn" id="dome-zoom-out" title="Zoom out">−</button>
+            <button class="dome-zoom-btn" id="dome-zoom-in"    title="Zoom in">+</button>
+            <button class="dome-zoom-btn" id="dome-zoom-out"   title="Zoom out">−</button>
             <button class="dome-zoom-btn" id="dome-zoom-reset" title="Reset view">↺</button>
+            <button class="dome-zoom-btn" id="dome-pause"      title="Pause rotation">⏸</button>
           </div>
         </div>
 
         <p class="dome-hint">Click and drag to rotate · Scroll to zoom</p>
+
+        <!-- Cycle animation controls -->
+        <div class="dome-anim-row">
+          <button class="dome-anim-btn" id="dome-anim-btn" title="Show cycle animation">▶ Animate</button>
+          <div class="dome-anim-controls" id="dome-anim-controls">
+            <label for="dome-anim-speed">Speed:</label>
+            <select id="dome-anim-speed" class="dome-anim-speed">
+              <option value="27">1 tropical month / sec</option>
+              <option value="108" selected>4 months / sec</option>
+              <option value="365">1 year / sec</option>
+              <option value="1826">5 years / sec</option>
+            </select>
+            <span class="dome-anim-date" id="dome-anim-date"></span>
+          </div>
+        </div>
 
         <div class="dome-legend">
           <div class="dome-legend-item">

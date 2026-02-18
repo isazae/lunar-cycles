@@ -108,9 +108,14 @@ let renderer = null;
 let scene    = null;
 let camera   = null;
 let animId   = null;
-let spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+let spherical  = { theta: 0.3, phi: 1.1, radius: 2.8 };
 let isDragging = false;
 let prevMouse  = { x: 0, y: 0 };
+let isRotating = true;   // auto-rotation on/off
+
+// Cycle animation state
+let cycleAnimating  = false;  // is the cycle animation playing?
+let cycleAnimState  = null;   // { baseDate, simDate, daysPerSecond, lastFrameTime, savedState }
 
 // Groups that get rebuilt on state change
 let dynamicGroup = null;
@@ -325,6 +330,66 @@ function attachControls(container) {
     spherical = { theta: 0.3, phi: 1.1, radius: 2.8 }; updateCamera();
   });
 
+  // Pause / play rotation button
+  document.getElementById('dome-pause')?.addEventListener('click', () => {
+    isRotating = !isRotating;
+    const btn = document.getElementById('dome-pause');
+    if (btn) btn.textContent = isRotating ? '⏸' : '▶';
+    btn.title = isRotating ? 'Pause rotation' : 'Resume rotation';
+  });
+
+  // Cycle animation: speed selector changes daysPerSecond
+  document.getElementById('dome-anim-speed')?.addEventListener('change', e => {
+    if (cycleAnimState) cycleAnimState.daysPerSecond = parseFloat(e.target.value);
+  });
+
+  // Animate button: toggle cycle animation on/off
+  document.getElementById('dome-anim-btn')?.addEventListener('click', () => {
+    const btn     = document.getElementById('dome-anim-btn');
+    const readout = document.getElementById('dome-anim-date');
+    const controls = document.getElementById('dome-anim-controls');
+
+    if (!cycleAnimating) {
+      // Start — we need the current saved state; it gets set in renderDome each call
+      // Pull it from the button's data attribute set by renderDome
+      const savedStateJson = btn.dataset.savedState;
+      if (!savedStateJson) return;
+      const savedState = JSON.parse(savedStateJson);
+      savedState.date  = new Date(savedState.date);
+
+      const speedEl = document.getElementById('dome-anim-speed');
+      const daysPerSecond = speedEl ? parseFloat(speedEl.value) : 27;
+
+      cycleAnimState = {
+        savedState,
+        simDate:      new Date(savedState.date),
+        daysPerSecond,
+        lastFrameTime: performance.now(),
+      };
+      cycleAnimating = true;
+      if (btn) { btn.textContent = '⏹ Stop'; btn.title = 'Stop animation'; }
+      if (controls) controls.classList.add('active');
+      // Pause rotation so dome is steady during animation
+      isRotating = false;
+      const pauseBtn = document.getElementById('dome-pause');
+      if (pauseBtn) { pauseBtn.textContent = '▶'; pauseBtn.title = 'Resume rotation'; }
+    } else {
+      // Stop — restore the real date
+      cycleAnimating = false;
+      cycleAnimState = null;
+      if (btn) { btn.textContent = '▶ Animate'; btn.title = 'Show cycle animation'; }
+      if (controls) controls.classList.remove('active');
+      if (readout) readout.textContent = '';
+      // Restore real scene from saved state
+      const savedStateJson = btn.dataset.savedState;
+      if (savedStateJson) {
+        const savedState = JSON.parse(savedStateJson);
+        savedState.date  = new Date(savedState.date);
+        buildDynamicScene(savedState);
+      }
+    }
+  });
+
   window.addEventListener('resize', () => {
     const w = container.clientWidth;
     const h = container.clientHeight;
@@ -350,9 +415,30 @@ export function initDome() {
   updateCamera();
 
   // Animation loop — guard against scene being null on first frames
-  function animate() {
+  function animate(timestamp) {
     animId = requestAnimationFrame(animate);
-    if (!isDragging) { spherical.theta += 0.0008; updateCamera(); }
+
+    // Auto-rotation
+    if (!isDragging && isRotating) { spherical.theta += 0.0008; updateCamera(); }
+
+    // Cycle animation: advance simulated date and rebuild arcs each frame
+    if (cycleAnimating && cycleAnimState && scene) {
+      const now     = timestamp || performance.now();
+      const elapsed = (now - cycleAnimState.lastFrameTime) / 1000; // seconds
+      cycleAnimState.lastFrameTime = now;
+
+      // Advance simulated date
+      const msAdvance = elapsed * cycleAnimState.daysPerSecond * 86400000;
+      cycleAnimState.simDate = new Date(cycleAnimState.simDate.getTime() + msAdvance);
+
+      // Update date readout
+      const readout = document.getElementById('dome-anim-date');
+      if (readout) readout.textContent = cycleAnimState.simDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+      // Rebuild dynamic arcs with the simulated date (keep lat/lon from saved state)
+      buildDynamicScene({ ...cycleAnimState.savedState, date: cycleAnimState.simDate });
+    }
+
     if (scene) renderer.render(scene, camera);
   }
   animate();
@@ -372,6 +458,13 @@ export function renderDome(state) {
     camera.updateProjectionMatrix();
     buildStaticScene(toRad(state.lat));
   }
+
+  // Store current state on the animate button so animation can read it
+  const animBtn = document.getElementById('dome-anim-btn');
+  if (animBtn) animBtn.dataset.savedState = JSON.stringify(state);
+
+  // If cycle animation is running, don't overwrite the scene — let animation drive it
+  if (cycleAnimating) return;
 
   // Always rebuild arcs for new date/location
   buildDynamicScene(state);
