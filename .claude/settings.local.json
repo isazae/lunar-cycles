@@ -12,7 +12,8 @@
       "Bash(npx vercel:*)",
       "Bash(git remote add:*)",
       "Bash(git push:*)",
-      "Bash(gh auth status:*)"
+      "Bash(gh auth status:*)",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

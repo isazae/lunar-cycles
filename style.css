@@ -244,26 +244,32 @@ main {
 }
 
 .bar-glow {
-  position: absolute;
-  top: 50%;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  animation: bar-pulse 3s ease-in-out infinite;
-  transition: left 1.2s ease-out;
-  pointer-events: none;
+  display: none; /* removed — pulsing glow reads as interactive/draggable */
 }
 
 .bar-marker {
   position: absolute;
   top: 50%;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
+  width: 2px;
+  height: 22px;
+  border-radius: 1px;
   transform: translate(-50%, -50%);
   z-index: 2;
   transition: left 1.2s ease-out;
+}
+
+/* Small downward-pointing triangle at the top of the marker line */
+.bar-marker::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
 }
 
 .bar-marker-label {
@@ -294,20 +300,17 @@ main {
 /* ── Cycle colour skins ────────────────────────────────────── */
 .synodic .bar-track        { background: rgba(240 216 144 / 0.1); }
 .synodic .bar-fill         { background: linear-gradient(90deg, rgba(240 216 144 / 0.35), rgba(240 216 144 / 0.55)); }
-.synodic .bar-marker       { background: var(--gold); box-shadow: 0 0 8px rgba(240 216 144 / 0.5); }
-.synodic .bar-glow         { background: radial-gradient(circle, rgba(240 216 144 / 0.2), transparent 70%); }
+.synodic .bar-marker       { background: var(--gold); color: var(--gold); }
 .synodic .bar-marker-label { color: var(--gold); }
 
 .tropical .bar-track        { background: rgba(106 170 206 / 0.1); }
 .tropical .bar-fill         { background: linear-gradient(90deg, rgba(106 170 206 / 0.35), rgba(106 170 206 / 0.55)); }
-.tropical .bar-marker       { background: var(--blue); box-shadow: 0 0 8px rgba(106 170 206 / 0.5); }
-.tropical .bar-glow         { background: radial-gradient(circle, rgba(106 170 206 / 0.2), transparent 70%); }
+.tropical .bar-marker       { background: var(--blue); color: var(--blue); }
 .tropical .bar-marker-label { color: var(--blue); }
 
 .nodal .bar-track        { background: rgba(184 130 200 / 0.1); }
 .nodal .bar-fill         { background: linear-gradient(90deg, rgba(184 130 200 / 0.3), rgba(184 130 200 / 0.5)); }
-.nodal .bar-marker       { background: var(--purple); box-shadow: 0 0 8px rgba(184 130 200 / 0.5); }
-.nodal .bar-glow         { background: radial-gradient(circle, rgba(184 130 200 / 0.2), transparent 70%); }
+.nodal .bar-marker       { background: var(--purple); color: var(--purple); }
 .nodal .bar-marker-label { color: var(--purple); }
 
 /* ── Day chart ─────────────────────────────────────────────── */

@@ -12,55 +12,137 @@ const DPR    = window.devicePixelRatio || 1;
 
 let currentState = null;
 
+// ── Standard-time reference ────────────────────────────────────
+// The graph Y-axis always uses the local timezone's STANDARD (non-DST) offset.
+// This keeps every column exactly 24 h wide and produces smooth, continuous
+// sunrise/sunset curves with no jump at the DST transition.
+// Tooltip times are shown in wall-clock time (DST-adjusted) with the tz abbreviation.
+//
+// Math.max picks the larger offset (positive = west), which is always the
+// standard offset, because DST reduces the offset by 1 h (e.g. EST=300, EDT=240).
+const STD_OFFSET_MIN = Math.max(
+  new Date(2000, 0, 1).getTimezoneOffset(),  // January  — standard in Northern Hemisphere
+  new Date(2000, 6, 1).getTimezoneOffset()   // July     — standard in Southern Hemisphere
+);
+const STD_OFFSET_MS = STD_OFFSET_MIN * 60000;
+
+// Standard-time midnight (00:00 std) for a local calendar date given as components.
+function stdMidnight(y, m, d) {
+  return new Date(Date.UTC(y, m, d) + STD_OFFSET_MS);
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
-// Actual millisecond length of the local calendar day containing 'date'.
-// Differs from MS_PER_DAY on DST transition days (23 h or 25 h).
-function localDayMs(date) {
-  const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const nextMid  = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-  return nextMid - midnight;
-}
-
-// Fraction of the local calendar day that a Date falls on (0 = midnight, 1 = next midnight).
-// Uses actual day length so DST transitions don't cause a jump.
+// Fraction of the standard-time calendar day that a Date falls on.
+// 0 = standard midnight, 0.5 = standard noon, 1 = next standard midnight.
+// Always divides by MS_PER_DAY — no 23 h / 25 h DST distortion.
 function dayFrac(date) {
-  const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  return (date - midnight) / localDayMs(date);
+  const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
+  return (date - stdMidnight(y, m, d)) / MS_PER_DAY;
 }
 
-// Moon visibility intervals for a given calendar day, as {s, e} fractions.
-// Handles all edge cases: rises only, sets only, wraps past midnight.
-function moonBands(dayStart, lat, lon) {
-  const dayMs = localDayMs(dayStart); // use actual day length for DST correctness
-  const mt = SunCalc.getMoonTimes(dayStart, lat, lon);
+// Find the moon rise and set times that genuinely fall within a local calendar day.
+//
+// SunCalc.getMoonTimes always starts its 24 h search from UTC midnight (when inUTC
+// is false, the default).  For western timezones like EST (UTC−5) this means the
+// search window is 00:00–24:00 UTC, while the local standard-time day spans
+// 05:00 UTC → 05:00 UTC next day.  Events in the last few hours of the local day
+// (e.g. a moonset at 11:59 PM EST = 04:59 UTC the next morning) lie outside the
+// UTC-midnight window and would be silently missed.
+//
+// Fix: run SunCalc for the two UTC dates whose 24 h windows together cover the
+// full local day, then filter every result through inDay so only events genuinely
+// within [dayStart, dayStart + 24 h] are kept.
+// Internal helper: run SunCalc for the two UTC dates that straddle a standard-time
+// midnight, returning up to four raw result objects.
+function _sunCalcAroundMidnight(dayStart, lat, lon) {
+  const d0 = new Date(Date.UTC(
+    dayStart.getUTCFullYear(), dayStart.getUTCMonth(), dayStart.getUTCDate()
+  ));
+  const d1 = new Date(d0.getTime() + MS_PER_DAY);
+  return [SunCalc.getMoonTimes(d0, lat, lon), SunCalc.getMoonTimes(d1, lat, lon)];
+}
 
-  if (mt.alwaysUp)   return [{ s: 0, e: 1 }];
-  if (mt.alwaysDown) return [];
+// Find the moon rise/set times that genuinely fall within a noon→noon column.
+//
+// dayNoon: the standard-time noon that opens the visual column (e.g. Feb 3 noon).
+// The column spans [dayNoon, dayNoon + 24 h], with midnight at the centre.
+//
+// Strategy: run the proven two-UTC-date search around EACH of the two standard-time
+// midnights that bracket this noon (midnight before noon, midnight after noon).
+// Together the four SunCalc calls cover every possible event in the column, and the
+// inDay filter selects only those that fall within [dayNoon, dayNoon + 24 h].
+function getMoonEventsInDay(dayNoon, lat, lon) {
+  const toFrac = t => (t ? (t - dayNoon) / MS_PER_DAY : null);
+  const inDay  = f => (f !== null && f >= 0 && f <= 1);
 
-  const rise = mt.rise ? (mt.rise - dayStart) / dayMs : null;
-  const set  = mt.set  ? (mt.set  - dayStart) / dayMs : null;
+  const midnightBefore = new Date(dayNoon.getTime() - 12 * 3600000); // std midnight of labeled day
+  const midnightAfter  = new Date(dayNoon.getTime() + 12 * 3600000); // std midnight of next day
 
-  if (rise !== null && set !== null) {
-    if (rise < set) {
-      // Normal: rises then sets within the day
-      return [{ s: rise, e: set }];
-    }
-    // Moon was up at midnight, sets in the morning, then rises again in the evening
-    return [{ s: 0, e: set }, { s: rise, e: 1 }];
+  const allMt = [
+    ..._sunCalcAroundMidnight(midnightBefore, lat, lon),
+    ..._sunCalcAroundMidnight(midnightAfter,  lat, lon),
+  ];
+
+  let rise = null, set = null, alwaysUp = false, alwaysDown = false;
+  for (const mt of allMt) {
+    if (mt.alwaysUp)   alwaysUp   = true;
+    if (mt.alwaysDown) alwaysDown = true;
+    if (mt.rise && !rise && inDay(toFrac(mt.rise))) rise = mt.rise;
+    if (mt.set  && !set  && inDay(toFrac(mt.set)))  set  = mt.set;
   }
 
-  if (rise !== null) return [{ s: rise, e: 1  }]; // rises today, sets tomorrow
-  if (set  !== null) return [{ s: 0,    e: set }]; // was up at midnight, sets today
+  if (!rise && !set) {
+    if (alwaysUp)   return { rise: null, set: null, alwaysUp: true };
+    if (alwaysDown) return { rise: null, set: null, alwaysDown: true };
+  }
+  return { rise, set };
+}
+
+// Moon visibility intervals for a given column, as {s, e} fractions.
+// Fractions are noon-based: 0 = column noon, 0.5 = midnight, 1 = next noon.
+// This matches the visual column exactly (the graph shows noon→midnight→noon).
+// dayStart is the standard-time midnight; noon is derived from it.
+function moonBands(dayStart, lat, lon) {
+  // Each column spans noon→noon, so search that same window for moon events.
+  const dayNoon = new Date(dayStart.getTime() + 12 * 3600000);
+  const { rise, set, alwaysUp, alwaysDown } = getMoonEventsInDay(dayNoon, lat, lon);
+
+  if (alwaysUp)   return [{ s: 0, e: 1 }];
+  if (alwaysDown) return [];
+
+  // Fractions relative to noon: 0=noon, 0.5=midnight, 1=next noon.
+  const toFrac = t => (t - dayNoon) / MS_PER_DAY;
+  const rF = rise ? toFrac(rise) : null;
+  const sF = set  ? toFrac(set)  : null;
+
+  if (rF !== null && sF !== null) {
+    if (rF < sF) return [{ s: rF, e: sF }];
+    // Moon was already up at noon, sets before midnight, rises again after midnight
+    return [{ s: 0, e: sF }, { s: rF, e: 1 }];
+  }
+
+  if (rF !== null) return [{ s: rF, e: 1  }]; // rises this column, sets in next
+  if (sF !== null) return [{ s: 0,  e: sF }]; // was up at noon, sets this column
   return [];
 }
 
-// Format a Date as "h:mm am/pm"
+// Timezone abbreviation for a given Date (e.g. "EST", "EDT", "CET").
+function tzAbbr(date) {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+      .formatToParts(date)
+      .find(p => p.type === 'timeZoneName')?.value ?? '';
+  } catch { return ''; }
+}
+
+// Format a Date as "h:mm am/pm TZ"  (wall-clock / DST-adjusted time)
 function fmtTime(d) {
   const h  = d.getHours();
-  const m  = d.getMinutes();
+  const mn = d.getMinutes();
   const hh = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${hh}:${m.toString().padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+  const tz = tzAbbr(d);
+  return `${hh}:${mn.toString().padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}${tz ? ' ' + tz : ''}`;
 }
 
 // ── Resize ────────────────────────────────────────────────────
@@ -114,7 +196,7 @@ function draw(canvas, state) {
   ctx.fillRect(MARGIN.left, MARGIN.top, plotW, plotH);
 
   // ── Y-axis gridlines & labels ──
-  // New axis: top=noon, centre=midnight, bottom=noon (next day)
+  // Times are in the local timezone's standard time (year-round).
   const yTicks = [
     { frac: 0,    label: 'noon' },
     { frac: 0.25, label: '6pm'  },
@@ -161,7 +243,8 @@ function draw(canvas, state) {
   for (let i = 0; i < totalDays; i++) {
     const daysOff  = i - half;
     const dayDate  = new Date(state.date.getTime() + daysOff * MS_PER_DAY);
-    const dayStart = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+    // Standard-time midnight — every column is exactly 24 h, no DST distortion.
+    const dayStart = stdMidnight(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
     const x        = colX(i);
 
     // Per-column background (slightly lighter than chart bg, contrasts with gap)
@@ -173,7 +256,10 @@ function draw(canvas, state) {
     // ── Sun band ──
     // In the new axis noon=0/1, the daylight period always straddles noon,
     // so it wraps: afternoon sits at the top, morning at the bottom.
-    const sunT = SunCalc.getTimes(dayStart, state.lat, state.lon);
+    // Pass standard noon so SunCalc's Julian-Day calculation always lands on
+    // the correct calendar day regardless of timezone UTC offset.
+    const sunNoon = new Date(dayStart.getTime() + 12 * 3600000);
+    const sunT = SunCalc.getTimes(sunNoon, state.lat, state.lon);
     const sr   = sunT.sunrise;
     const ss   = sunT.sunset;
 
@@ -223,19 +309,19 @@ function draw(canvas, state) {
     const ma = (0.07 + illum * 0.68).toFixed(2); // 0.07 → 0.75
     const moonColor = `rgba(${mr}, ${mg}, ${mb}, ${ma})`;
 
+    // moonBands returns noon-based fractions (0=noon, 0.5=midnight, 1=next noon),
+    // which are already in visual coordinates — no reframe() needed.
     moonBands(dayStart, state.lat, state.lon).forEach(({ s, e }) => {
-      const ns = reframe(s);
-      const ne = reframe(e);
       ctx.fillStyle = moonColor;
-      if (ns <= ne) {
-        const y1 = fracY(ns), y2 = fracY(ne);
+      if (s <= e) {
+        const y1 = fracY(s), y2 = fracY(e);
         if (y2 > y1) ctx.fillRect(x, y1, barW, y2 - y1);
       } else {
-        // Wraps at noon boundary — two segments
-        const h1 = fracY(ne) - fracY(0);
-        if (h1 > 0) ctx.fillRect(x, fracY(0),  barW, h1);
-        const h2 = fracY(1)  - fracY(ns);
-        if (h2 > 0) ctx.fillRect(x, fracY(ns), barW, h2);
+        // Wraps at noon boundary (top/bottom of column) — two segments
+        const h1 = fracY(e) - fracY(0);
+        if (h1 > 0) ctx.fillRect(x, fracY(0), barW, h1);
+        const h2 = fracY(1) - fracY(s);
+        if (h2 > 0) ctx.fillRect(x, fracY(s), barW, h2);
       }
     });
   }
@@ -359,22 +445,27 @@ function attachTooltip(canvas, tooltip) {
 
     const daysOff  = colIdx - Math.floor(totalDays / 2);
     const dayDate  = new Date(currentState.date.getTime() + daysOff * MS_PER_DAY);
-    const dayStart = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+    const dayStart = stdMidnight(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+    const sunNoon  = new Date(dayStart.getTime() + 12 * 3600000);
 
     const dateStr  = `${MONTHS[dayDate.getMonth()]} ${dayDate.getDate()}`;
     const dayLabel = daysOff === 0 ? 'Today'
       : daysOff > 0 ? `+${daysOff}d`
       : `${daysOff}d`;
 
-    const sunT  = SunCalc.getTimes(dayStart, currentState.lat, currentState.lon);
-    const moonT = SunCalc.getMoonTimes(dayStart, currentState.lat, currentState.lon);
+    const sunT  = SunCalc.getTimes(sunNoon, currentState.lat, currentState.lon);
+    // Use noon→noon window to match what the column visually shows.
+    const { rise: moonRise, set: moonSet,
+            alwaysUp: moonAlwaysUp, alwaysDown: moonAlwaysDown }
+      = getMoonEventsInDay(sunNoon, currentState.lat, currentState.lon);
 
-    const sunriseStr  = sunT.sunrise   ? fmtTime(sunT.sunrise)  : '—';
-    const sunsetStr   = sunT.sunset    ? fmtTime(sunT.sunset)   : '—';
-    const moonriseStr = moonT.rise     ? fmtTime(moonT.rise)
-      : moonT.alwaysUp   ? 'always up'   : '—';
-    const moonsetStr  = moonT.set      ? fmtTime(moonT.set)
-      : moonT.alwaysDown ? 'always down' : '—';
+    // fmtTime() uses Date.getHours() — wall-clock / DST-adjusted — with tz abbreviation
+    const sunriseStr  = sunT.sunrise  ? fmtTime(sunT.sunrise) : '—';
+    const sunsetStr   = sunT.sunset   ? fmtTime(sunT.sunset)  : '—';
+    const moonriseStr = moonRise      ? fmtTime(moonRise)
+      : moonAlwaysUp   ? 'always up'   : '—';
+    const moonsetStr  = moonSet       ? fmtTime(moonSet)
+      : moonAlwaysDown ? 'always down' : '—';
 
     tooltip.innerHTML =
       `<strong>${dateStr}</strong> (${dayLabel})<br>` +
