@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Lunar Cycles — Sinusoidal Waves</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e1a;
+    color: #c8cdd8;
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: #e8e0d0;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #5a6178;
+    letter-spacing: 0.08em;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+
+  .chart-wrapper {
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .wave-panel {
+    position: relative;
+    background: linear-gradient(180deg, rgba(13,18,37,0.8) 0%, rgba(10,14,26,0.9) 100%);
+    border: 1px solid #1a2040;
+    border-radius: 4px;
+    padding: 20px 16px 14px;
+  }
+
+  .wave-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 2px;
+    padding: 0 4px;
+  }
+
+  .wave-name {
+    font-size: 1.2rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+  }
+
+  .wave-period {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: #5a6178;
+    letter-spacing: 0.03em;
+  }
+
+  .wave-desc {
+    font-size: 0.85rem;
+    font-weight: 300;
+    padding: 0 4px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+  }
+
+  .wave-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 4px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    color: #3a4058;
+  }
+
+  /* Color themes */
+  .synodic .wave-name { color: #f0d890; }
+  .synodic .wave-desc { color: rgba(240, 216, 144, 0.4); }
+  .tropical .wave-name { color: #6aaCe0; }
+  .tropical .wave-desc { color: rgba(106, 172, 224, 0.4); }
+  .nodal .wave-name { color: #b882c8; }
+  .nodal .wave-desc { color: rgba(184, 130, 200, 0.4); }
+
+  .legend-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: #5a6178;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .info-box {
+    max-width: 960px;
+    margin-top: 28px;
+    padding: 20px 24px;
+    background: rgba(255,255,255,0.02);
+    border-left: 2px solid #2a3460;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #6a7090;
+    font-weight: 300;
+  }
+
+  .info-box strong {
+    color: #c8cdd8;
+    font-weight: 400;
+  }
+</style>
+</head>
+<body>
+
+<h1>Three Lunar Cycles</h1>
+<p class="subtitle">Sinusoidal waves · current position marked · February 8, 2026</p>
+
+<div class="chart-wrapper">
+
+  <!-- Synodic -->
+  <div class="wave-panel synodic">
+    <div class="wave-header">
+      <span class="wave-name">Synodic Month</span>
+      <span class="wave-period">Period: 29.53 days</span>
+    </div>
+    <div class="wave-desc">Governs shape (phase) · New Moon → Full Moon → New Moon</div>
+    <canvas id="synodic-canvas"></canvas>
+    <div class="wave-labels" id="synodic-labels"></div>
+  </div>
+
+  <!-- Tropical -->
+  <div class="wave-panel tropical">
+    <div class="wave-header">
+      <span class="wave-name">Tropical Month</span>
+      <span class="wave-period">Period: 27.32 days</span>
+    </div>
+    <div class="wave-desc">Governs position (declination) · Max North → Max South → Max North</div>
+    <canvas id="tropical-canvas"></canvas>
+    <div class="wave-labels" id="tropical-labels"></div>
+  </div>
+
+  <!-- Nodal -->
+  <div class="wave-panel nodal">
+    <div class="wave-header">
+      <span class="wave-name">Nodal Cycle</span>
+      <span class="wave-period">Period: 18.61 years</span>
+    </div>
+    <div class="wave-desc">Governs amplitude of declination · Major Standstill → Minor Standstill → Major Standstill</div>
+    <canvas id="nodal-canvas"></canvas>
+    <div class="wave-labels" id="nodal-labels"></div>
+  </div>
+
+</div>
+
+<div class="legend-row">
+  <div class="legend-item"><div class="legend-dot" style="background:#f0d890;"></div> Synodic (phase)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6aaCe0;"></div> Tropical (position)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#b882c8;"></div> Nodal (amplitude)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fff; opacity:0.9;"></div> Today</div>
+</div>
+
+<div class="info-box">
+  Each wave represents a different cycle governing the Moon's behavior. The <strong>synodic wave</strong> (gold) shows the illumination cycle — peaks are full moons, troughs are new moons. The <strong>tropical wave</strong> (blue) shows declination — peaks are maximum northern position, troughs are maximum southern. The <strong>nodal wave</strong> (purple) shows how the amplitude of the tropical wave changes over 18.6 years — peaks are major standstills, troughs are minor standstills. Notice how the first two waves have nearly the same wavelength but are slightly offset — that ~2.2-day difference is what causes full moons to drift through different declination positions over the year.
+</div>
+
+<script>
+const DPR = window.devicePixelRatio || 1;
+const MS_PER_DAY = 86400000;
+const today = new Date(2026, 1, 8);
+
+// --- Reference dates ---
+const newMoonRef = new Date(Date.UTC(2026, 0, 29, 12, 36));
+const maxNorthRef = new Date(Date.UTC(2026, 0, 25));
+const majorStandstillRef = new Date(Date.UTC(2025, 0, 15));
+
+const SYNODIC = 29.53059;
+const TROPICAL = 27.3216;
+const NODAL_DAYS = 18.613 * 365.25;
+
+// Progress (0-1) through each cycle
+const synodicProgress = (((today - newMoonRef) / MS_PER_DAY % SYNODIC) + SYNODIC) % SYNODIC / SYNODIC;
+const tropicalProgress = (((today - maxNorthRef) / MS_PER_DAY % TROPICAL) + TROPICAL) % TROPICAL / TROPICAL;
+const nodalProgress = (((today - majorStandstillRef) / MS_PER_DAY % NODAL_DAYS) + NODAL_DAYS) % NODAL_DAYS / NODAL_DAYS;
+
+// --- Drawing ---
+const COLORS = {
+  synodic: { line: 'rgba(240, 216, 144, 0.7)', fill: 'rgba(240, 216, 144, 0.08)', dot: '#f0d890', glow: 'rgba(240, 216, 144, 0.3)' },
+  tropical: { line: 'rgba(106, 172, 224, 0.7)', fill: 'rgba(106, 172, 224, 0.08)', dot: '#6aaCe0', glow: 'rgba(106, 172, 224, 0.3)' },
+  nodal: { line: 'rgba(184, 130, 200, 0.7)', fill: 'rgba(184, 130, 200, 0.08)', dot: '#b882c8', glow: 'rgba(184, 130, 200, 0.3)' }
+};
+
+function drawWave(canvasId, labelsId, progress, color, cycles, topLabel, bottomLabel, peakLabels, troughLabels) {
+  const canvas = document.getElementById(canvasId);
+  const labelsDiv = document.getElementById(labelsId);
+  const parent = canvas.parentElement;
+  const w = parent.clientWidth - 32;
+  const h = 120;
+
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width = w * DPR;
+  canvas.height = h * DPR;
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  const pad = { left: 12, right: 12, top: 22, bottom: 22 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+  const midY = pad.top + plotH / 2;
+  const amp = plotH / 2 - 4;
+
+  // x position for a given fraction (0 to cycles)
+  const xOf = (frac) => pad.left + (frac / cycles) * plotW;
+  // y position for sine value
+  const yOf = (val) => midY - val * amp;
+
+  // Zero line
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.moveTo(pad.left, midY);
+  ctx.lineTo(w - pad.right, midY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Fill area
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), midY);
+  for (let i = 0; i <= 1000; i++) {
+    const frac = (i / 1000) * cycles;
+    const val = Math.sin(frac * 2 * Math.PI);
+    ctx.lineTo(xOf(frac), yOf(val));
+  }
+  ctx.lineTo(xOf(cycles), midY);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+  grad.addColorStop(0, color.fill);
+  grad.addColorStop(0.45, 'rgba(10,14,26,0)');
+  grad.addColorStop(0.55, 'rgba(10,14,26,0)');
+  grad.addColorStop(1, color.fill);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Wave line
+  ctx.beginPath();
+  for (let i = 0; i <= 1000; i++) {
+    const frac = (i / 1000) * cycles;
+    const val = Math.sin(frac * 2 * Math.PI);
+    const x = xOf(frac);
+    const y = yOf(val);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = color.line;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Peak and trough labels
+  ctx.font = '0.52rem "JetBrains Mono"';
+  ctx.textAlign = 'center';
+
+  for (let c = 0; c < cycles; c++) {
+    // Peak at 0.25 of each cycle
+    const peakFrac = c + 0.25;
+    const peakX = xOf(peakFrac);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillText(peakLabels || topLabel, peakX, pad.top - 6);
+
+    // Trough at 0.75 of each cycle
+    const troughFrac = c + 0.75;
+    const troughX = xOf(troughFrac);
+    ctx.fillText(troughLabels || bottomLabel, troughX, h - pad.bottom + 14);
+  }
+
+  // Today marker
+  const todayFrac = progress * 1; // position in first cycle
+  const todayX = xOf(todayFrac);
+  const todayVal = Math.sin(todayFrac * 2 * Math.PI);
+  const todayY = yOf(todayVal);
+
+  // Vertical dashed line from dot to zero
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
+  ctx.moveTo(todayX, midY);
+  ctx.lineTo(todayX, todayY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Glow
+  const glowGrad = ctx.createRadialGradient(todayX, todayY, 0, todayX, todayY, 18);
+  glowGrad.addColorStop(0, color.glow);
+  glowGrad.addColorStop(1, 'transparent');
+  ctx.beginPath();
+  ctx.arc(todayX, todayY, 18, 0, Math.PI * 2);
+  ctx.fillStyle = glowGrad;
+  ctx.fill();
+
+  // Dot
+  ctx.beginPath();
+  ctx.arc(todayX, todayY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(todayX, todayY, 3, 0, Math.PI * 2);
+  ctx.fillStyle = color.dot;
+  ctx.fill();
+
+  // "Today" label
+  ctx.fillStyle = '#e8e0d0';
+  ctx.font = '500 0.65rem "Cormorant Garamond"';
+  ctx.textAlign = 'center';
+  const labelOffset = todayVal > 0 ? 18 : -14;
+  ctx.fillText('today', todayX, todayY + labelOffset);
+}
+
+function drawAll() {
+  // Synodic: show 3 full cycles (~89 days)
+  drawWave('synodic-canvas', 'synodic-labels', synodicProgress, COLORS.synodic, 3,
+    '🌕 Full', '🌑 New', '🌕 Full', '🌑 New');
+
+  // Tropical: show 3 full cycles (~82 days)
+  drawWave('tropical-canvas', 'tropical-labels', tropicalProgress, COLORS.tropical, 3,
+    '▲ Max N', '▼ Max S', '▲ Max North', '▼ Max South');
+
+  // Nodal: show 1 full cycle (18.6 years)
+  drawWave('nodal-canvas', 'nodal-labels', nodalProgress, COLORS.nodal, 1,
+    '⬥ Major Standstill', '⬦ Minor Standstill', '⬥ Major Standstill (±28.5°)', '⬦ Minor Standstill (±18.5°)');
+}
+
+drawAll();
+window.addEventListener('resize', drawAll);
+</script>
+
+</body>
+</html>

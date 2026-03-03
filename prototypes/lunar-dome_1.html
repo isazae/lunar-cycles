@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lunar Paths Over New York City — Sky Dome</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a2038;
+    color: #c8cdd8;
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 300;
+    color: #e8e0d0;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 24px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: #5a6178;
+    letter-spacing: 0.06em;
+    margin-bottom: 16px;
+    text-align: center;
+    max-width: 640px;
+    line-height: 1.5;
+    padding: 0 16px;
+  }
+
+  #scene-container {
+    width: 100%;
+    max-width: 900px;
+    height: 520px;
+    position: relative;
+    cursor: grab;
+  }
+
+  #scene-container:active { cursor: grabbing; }
+
+  canvas { display: block; }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    padding: 0 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: #7a8098;
+    letter-spacing: 0.03em;
+  }
+
+  .legend-line {
+    width: 22px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .legend-band {
+    width: 22px;
+    height: 10px;
+    border-radius: 2px;
+    opacity: 0.6;
+  }
+
+  .info-box {
+    max-width: 900px;
+    margin: 8px 16px 40px;
+    padding: 18px 22px;
+    background: rgba(255,255,255,0.04);
+    border-left: 2px solid #3a4870;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #6a7090;
+    font-weight: 300;
+  }
+
+  .info-box strong {
+    color: #c8cdd8;
+    font-weight: 400;
+  }
+
+  .controls-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    color: #5a6888;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+  }
+
+  .zoom-btn {
+    width: 36px;
+    height: 36px;
+    background: rgba(26, 32, 56, 0.85);
+    border: 1px solid #3a4870;
+    border-radius: 4px;
+    color: #8a9ab8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .zoom-btn:hover {
+    background: rgba(40, 50, 80, 0.9);
+    color: #e8e0d0;
+    border-color: #5a6a90;
+  }
+
+  .zoom-btn:active {
+    background: rgba(50, 60, 90, 0.95);
+  }
+</style>
+</head>
+<body>
+
+<h1>The Sky Dome Over New York</h1>
+<p class="subtitle">Lunar paths across the sky: the full range of the 18.6-year standstill cycle, the current tropical month's range, and tonight's actual path</p>
+
+<div id="scene-container">
+  <div class="zoom-controls">
+    <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+    <button class="zoom-btn" id="zoom-out" title="Zoom out">−</button>
+    <button class="zoom-btn" id="zoom-reset" title="Reset view" style="font-size:0.65rem;">↺</button>
+  </div>
+</div>
+
+<p class="controls-hint">Click and drag to rotate · Scroll to zoom</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-band" style="background: rgba(184, 130, 200, 0.5);"></div> Standstill range (±18.5° to ±28.5°)</div>
+  <div class="legend-item"><div class="legend-band" style="background: rgba(106, 172, 224, 0.5);"></div> Current tropical month range</div>
+  <div class="legend-item"><div class="legend-line" style="background: rgba(240, 216, 144, 0.9);"></div> Tonight's lunar path (Feb 8, 2026)</div>
+</div>
+
+<div class="info-box">
+  You're looking at a hemisphere representing the sky over NYC (latitude 40.7°N). The <strong>purple band</strong> shows every possible lunar path across the sky over the full 18.6-year standstill cycle — from the lowest arc (minor standstill, ±18.5° declination) to the highest (major standstill, ±28.5°). The <strong>blue band</strong> shows the narrower range the Moon sweeps through during this particular tropical month. The <strong>gold line</strong> is tonight's specific path. South is at the front of the dome — this is where the Moon culminates (reaches its highest point) as seen from NYC.
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =====================
+// ASTRONOMY CONSTANTS
+// =====================
+const LAT = 40.7128; // NYC latitude
+const LAT_RAD = LAT * Math.PI / 180;
+
+// Declination ranges
+const MAJOR_STANDSTILL_DEC = 28.5;  // degrees
+const MINOR_STANDSTILL_DEC = 18.5;
+// Current tropical month: we're near major standstill (early 2026), so amplitude is still ~27°
+const CURRENT_MAX_DEC = 27.2;
+
+// Tonight's Moon declination (Feb 8, 2026): approximately -17.6° (in Virgo, heading south)
+const TONIGHT_DEC = -17.6;
+
+// =====================
+// Altitude calculation
+// =====================
+// For an object at declination δ, observed from latitude φ:
+// Max altitude (culmination) = 90 - |φ - δ|
+// The object traces an arc: alt(HA) = asin(sin(φ)sin(δ) + cos(φ)cos(δ)cos(HA))
+// where HA = hour angle from -π to π (east to west)
+
+function altitude(dec_deg, ha_rad) {
+  const dec = dec_deg * Math.PI / 180;
+  return Math.asin(
+    Math.sin(LAT_RAD) * Math.sin(dec) +
+    Math.cos(LAT_RAD) * Math.cos(dec) * Math.cos(ha_rad)
+  );
+}
+
+function azimuth(dec_deg, ha_rad) {
+  const dec = dec_deg * Math.PI / 180;
+  const alt = altitude(dec_deg, ha_rad);
+  const cosAz = (Math.sin(dec) - Math.sin(LAT_RAD) * Math.sin(alt)) /
+                (Math.cos(LAT_RAD) * Math.cos(alt));
+  let az = Math.acos(Math.max(-1, Math.min(1, cosAz)));
+  if (Math.sin(ha_rad) > 0) az = 2 * Math.PI - az;
+  return az;
+}
+
+// Convert alt/az to 3D dome position
+// Dome: radius 1, centered at origin, horizon is the equator
+function altAzTo3D(alt_rad, az_rad, radius) {
+  // az: 0 = North, π/2 = East, π = South, 3π/2 = West
+  // In our dome: x = East, z = South (towards viewer), y = Up
+  const r = radius * Math.cos(alt_rad);
+  const x = r * Math.sin(az_rad); // east component
+  const z = r * Math.cos(az_rad); // north component (positive = north)
+  const y = radius * Math.sin(alt_rad);
+  // Flip z so south faces the viewer
+  return new THREE.Vector3(x, y, -z);
+}
+
+function lunarArcPoints(dec_deg, radius, numPoints) {
+  const points = [];
+  // Sweep hour angle from -π (east/rise) to +π (west/set)
+  // Only include points above horizon (alt > 0)
+  for (let i = 0; i <= numPoints; i++) {
+    const ha = -Math.PI + (2 * Math.PI * i / numPoints);
+    const alt = altitude(dec_deg, ha);
+    if (alt < -0.01) continue; // below horizon
+    const az = azimuth(dec_deg, ha);
+    points.push(altAzTo3D(Math.max(0, alt), az, radius));
+  }
+  return points;
+}
+
+// =====================
+// THREE.JS SCENE
+// =====================
+const container = document.getElementById('scene-container');
+const W = container.clientWidth;
+const H = container.clientHeight;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a2038);
+
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+camera.position.set(0, 0.6, 2.8);
+camera.lookAt(0, 0.3, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+// =====================
+// DOME WIREFRAME
+// =====================
+const DOME_RADIUS = 1.8;
+
+// Hemisphere wireframe
+const domeGeo = new THREE.SphereGeometry(DOME_RADIUS, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+const domeMat = new THREE.MeshBasicMaterial({
+  color: 0x3a4870,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.12
+});
+const dome = new THREE.Mesh(domeGeo, domeMat);
+scene.add(dome);
+
+// Horizon ring
+const horizonGeo = new THREE.RingGeometry(DOME_RADIUS - 0.005, DOME_RADIUS + 0.005, 128);
+const horizonMat = new THREE.MeshBasicMaterial({
+  color: 0x4a5a90,
+  transparent: true,
+  opacity: 0.6,
+  side: THREE.DoubleSide
+});
+const horizon = new THREE.Mesh(horizonGeo, horizonMat);
+horizon.rotation.x = -Math.PI / 2;
+scene.add(horizon);
+
+// Ground disc
+const groundGeo = new THREE.CircleGeometry(DOME_RADIUS, 64);
+const groundMat = new THREE.MeshBasicMaterial({
+  color: 0x151b30,
+  transparent: true,
+  opacity: 0.95,
+  side: THREE.DoubleSide
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.002;
+scene.add(ground);
+
+// =====================
+// CARDINAL DIRECTIONS
+// =====================
+function makeTextSprite(text, color) {
+  const canvas = document.createElement('canvas');
+  const size = 128;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.font = 'bold 42px "Courier New"';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, size / 2, size / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.5 });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.2, 0.2, 1);
+  return sprite;
+}
+
+const cardinals = [
+  { label: 'N', az: 0 },
+  { label: 'E', az: Math.PI / 2 },
+  { label: 'S', az: Math.PI },
+  { label: 'W', az: 3 * Math.PI / 2 }
+];
+
+cardinals.forEach(c => {
+  const r = DOME_RADIUS + 0.15;
+  const x = r * Math.sin(c.az);
+  const z = -r * Math.cos(c.az);
+  const sprite = makeTextSprite(c.label, '#8a9ab8');
+  sprite.position.set(x, 0.02, z);
+  scene.add(sprite);
+});
+
+// =====================
+// DRAW LUNAR ARC
+// =====================
+function createArc(dec_deg, color, linewidth, opacity) {
+  const points = lunarArcPoints(dec_deg, DOME_RADIUS - 0.01, 300);
+  if (points.length < 2) return null;
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: opacity,
+    linewidth: linewidth
+  });
+  return new THREE.Line(geo, mat);
+}
+
+// =====================
+// STANDSTILL BAND (purple)
+// =====================
+// Draw arcs from minor standstill range to major standstill range
+// Northern declinations
+for (let dec = MINOR_STANDSTILL_DEC; dec <= MAJOR_STANDSTILL_DEC; dec += 0.8) {
+  const arc = createArc(dec, 0xb882c8, 1, 0.22);
+  if (arc) scene.add(arc);
+}
+// Southern declinations
+for (let dec = -MAJOR_STANDSTILL_DEC; dec <= -MINOR_STANDSTILL_DEC; dec += 0.8) {
+  const arc = createArc(dec, 0xb882c8, 1, 0.22);
+  if (arc) scene.add(arc);
+}
+
+// Also fill the full range from -major to +major with very faint arcs
+for (let dec = -MINOR_STANDSTILL_DEC; dec <= MINOR_STANDSTILL_DEC; dec += 1.5) {
+  const arc = createArc(dec, 0xb882c8, 1, 0.08);
+  if (arc) scene.add(arc);
+}
+
+// Boundary arcs for standstill
+const majorNorthArc = createArc(MAJOR_STANDSTILL_DEC, 0xb882c8, 1, 0.6);
+if (majorNorthArc) scene.add(majorNorthArc);
+const majorSouthArc = createArc(-MAJOR_STANDSTILL_DEC, 0xb882c8, 1, 0.6);
+if (majorSouthArc) scene.add(majorSouthArc);
+const minorNorthArc = createArc(MINOR_STANDSTILL_DEC, 0xb882c8, 1, 0.45);
+if (minorNorthArc) scene.add(minorNorthArc);
+const minorSouthArc = createArc(-MINOR_STANDSTILL_DEC, 0xb882c8, 1, 0.45);
+if (minorSouthArc) scene.add(minorSouthArc);
+
+// =====================
+// TROPICAL MONTH BAND (blue)
+// =====================
+for (let dec = -CURRENT_MAX_DEC; dec <= CURRENT_MAX_DEC; dec += 1.2) {
+  const arc = createArc(dec, 0x6aaCe0, 1, 0.18);
+  if (arc) scene.add(arc);
+}
+
+// Boundary arcs for tropical month
+const tropNorthArc = createArc(CURRENT_MAX_DEC, 0x6aaCe0, 1, 0.65);
+if (tropNorthArc) scene.add(tropNorthArc);
+const tropSouthArc = createArc(-CURRENT_MAX_DEC, 0x6aaCe0, 1, 0.65);
+if (tropSouthArc) scene.add(tropSouthArc);
+
+// =====================
+// TONIGHT'S PATH (gold)
+// =====================
+const tonightArc = createArc(TONIGHT_DEC, 0xf0d890, 2, 0.95);
+if (tonightArc) scene.add(tonightArc);
+
+// Tonight's culmination point (highest point)
+const culminationAlt = (90 - Math.abs(LAT - TONIGHT_DEC)) * Math.PI / 180;
+const culminationAz = TONIGHT_DEC < LAT ? Math.PI : 0; // south if dec < lat
+const culminationPos = altAzTo3D(culminationAlt, culminationAz, DOME_RADIUS - 0.01);
+
+// Glowing dot at culmination
+const dotGeo = new THREE.SphereGeometry(0.025, 16, 16);
+const dotMat = new THREE.MeshBasicMaterial({ color: 0xf0d890 });
+const dot = new THREE.Mesh(dotGeo, dotMat);
+dot.position.copy(culminationPos);
+scene.add(dot);
+
+// Glow sprite at culmination
+const glowCanvas = document.createElement('canvas');
+glowCanvas.width = 64;
+glowCanvas.height = 64;
+const gCtx = glowCanvas.getContext('2d');
+const glowGrad = gCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+glowGrad.addColorStop(0, 'rgba(240, 216, 144, 0.6)');
+glowGrad.addColorStop(0.5, 'rgba(240, 216, 144, 0.15)');
+glowGrad.addColorStop(1, 'rgba(240, 216, 144, 0)');
+gCtx.fillStyle = glowGrad;
+gCtx.fillRect(0, 0, 64, 64);
+const glowTex = new THREE.CanvasTexture(glowCanvas);
+const glowSpriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true });
+const glowSprite = new THREE.Sprite(glowSpriteMat);
+glowSprite.scale.set(0.2, 0.2, 1);
+glowSprite.position.copy(culminationPos);
+scene.add(glowSprite);
+
+// Label for culmination
+const culminLabel = makeTextSprite(
+  `${(culminationAlt * 180 / Math.PI).toFixed(1)}°`,
+  '#f0d890'
+);
+culminLabel.position.copy(culminationPos);
+culminLabel.position.y += 0.12;
+culminLabel.scale.set(0.22, 0.22, 1);
+scene.add(culminLabel);
+
+// =====================
+// ALTITUDE LABELS on meridian
+// =====================
+[10, 20, 30, 40, 50, 60, 70, 80].forEach(alt => {
+  const altRad = alt * Math.PI / 180;
+  // Place on south meridian
+  const pos = altAzTo3D(altRad, Math.PI, DOME_RADIUS + 0.05);
+  const label = makeTextSprite(`${alt}°`, '#4a5a80');
+  label.position.copy(pos);
+  label.scale.set(0.14, 0.14, 1);
+  scene.add(label);
+});
+
+// =====================
+// MERIDIAN LINE (N-S)
+// =====================
+const meridianPoints = [];
+for (let alt = 0; alt <= 90; alt += 1) {
+  const altRad = alt * Math.PI / 180;
+  // South half
+  meridianPoints.push(altAzTo3D(altRad, Math.PI, DOME_RADIUS - 0.005));
+}
+for (let alt = 90; alt >= 0; alt -= 1) {
+  const altRad = alt * Math.PI / 180;
+  meridianPoints.push(altAzTo3D(altRad, 0, DOME_RADIUS - 0.005));
+}
+const meridianGeo = new THREE.BufferGeometry().setFromPoints(meridianPoints);
+const meridianMat = new THREE.LineBasicMaterial({
+  color: 0x4a5a80,
+  transparent: true,
+  opacity: 0.3
+});
+scene.add(new THREE.Line(meridianGeo, meridianMat));
+
+// =====================
+// SIMPLE ORBIT CONTROLS
+// =====================
+let isDragging = false;
+let prevMouse = { x: 0, y: 0 };
+let spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+
+function updateCamera() {
+  camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+  camera.position.y = spherical.radius * Math.cos(spherical.phi);
+  camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+  camera.lookAt(0, 0.15, 0);
+}
+
+container.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - prevMouse.x;
+  const dy = e.clientY - prevMouse.y;
+  spherical.theta -= dx * 0.005;
+  spherical.phi = Math.max(0.2, Math.min(1.5, spherical.phi + dy * 0.005));
+  prevMouse = { x: e.clientX, y: e.clientY };
+  updateCamera();
+});
+
+window.addEventListener('mouseup', () => { isDragging = false; });
+
+container.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  spherical.radius = Math.max(1.2, Math.min(7, spherical.radius + e.deltaY * 0.004));
+  updateCamera();
+}, { passive: false });
+
+// Touch support
+container.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+});
+
+container.addEventListener('touchmove', (e) => {
+  if (!isDragging || e.touches.length !== 1) return;
+  e.preventDefault();
+  const dx = e.touches[0].clientX - prevMouse.x;
+  const dy = e.touches[0].clientY - prevMouse.y;
+  spherical.theta -= dx * 0.005;
+  spherical.phi = Math.max(0.2, Math.min(1.5, spherical.phi + dy * 0.005));
+  prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  updateCamera();
+}, { passive: false });
+
+container.addEventListener('touchend', () => { isDragging = false; });
+
+// Zoom buttons
+document.getElementById('zoom-in').addEventListener('click', () => {
+  spherical.radius = Math.max(1.2, spherical.radius - 0.4);
+  updateCamera();
+});
+document.getElementById('zoom-out').addEventListener('click', () => {
+  spherical.radius = Math.min(7, spherical.radius + 0.4);
+  updateCamera();
+});
+document.getElementById('zoom-reset').addEventListener('click', () => {
+  spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+  updateCamera();
+});
+
+updateCamera();
+
+// =====================
+// STARS (subtle background)
+// =====================
+const starsGeo = new THREE.BufferGeometry();
+const starsPositions = [];
+for (let i = 0; i < 300; i++) {
+  // Random points on upper hemisphere
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.random() * Math.PI / 2;
+  const r = DOME_RADIUS - 0.03;
+  starsPositions.push(
+    r * Math.cos(phi) * Math.sin(theta),
+    r * Math.sin(phi),
+    r * Math.cos(phi) * Math.cos(theta)
+  );
+}
+starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPositions, 3));
+const starsMat = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 0.008,
+  transparent: true,
+  opacity: 0.35
+});
+scene.add(new THREE.Points(starsGeo, starsMat));
+
+// =====================
+// ANIMATION
+// =====================
+function animate() {
+  requestAnimationFrame(animate);
+  // Gentle auto-rotate when not dragging
+  if (!isDragging) {
+    spherical.theta += 0.0008;
+    updateCamera();
+  }
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// Resize
+window.addEventListener('resize', () => {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+</script>
+
+</body>
+</html>

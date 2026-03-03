@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Lunar Cycles — Where We Are Today</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e1a;
+    color: #c8cdd8;
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: #e8e0d0;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #5a6178;
+    letter-spacing: 0.08em;
+    margin-bottom: 48px;
+    text-align: center;
+  }
+
+  .cycles-container {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+
+  .cycle {
+    position: relative;
+  }
+
+  .cycle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .cycle-name {
+    font-size: 1.35rem;
+    font-weight: 400;
+    color: #e8e0d0;
+    letter-spacing: 0.06em;
+  }
+
+  .cycle-period {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: #5a6178;
+    letter-spacing: 0.04em;
+  }
+
+  .cycle-description {
+    font-size: 0.95rem;
+    color: #6a7090;
+    font-weight: 300;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .bar-container {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    margin-bottom: 6px;
+  }
+
+  .bar-track {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1.5s ease-out;
+  }
+
+  .bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: #3a4058;
+    letter-spacing: 0.03em;
+  }
+
+  .bar-labels-middle {
+    display: flex;
+    justify-content: center;
+    position: relative;
+  }
+
+  .bar-labels-middle span {
+    position: absolute;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    color: #3a4058;
+    letter-spacing: 0.03em;
+  }
+
+  /* Marker dot */
+  .marker {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    transition: left 1.5s ease-out;
+  }
+
+  .marker-glow {
+    position: absolute;
+    top: 50%;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    animation: pulse 3s ease-in-out infinite;
+    transition: left 1.5s ease-out;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.15); }
+  }
+
+  .marker-label {
+    position: absolute;
+    top: -2px;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    z-index: 4;
+    transition: left 1.5s ease-out;
+  }
+
+  /* Tick marks */
+  .tick {
+    position: absolute;
+    top: 50%;
+    width: 1px;
+    height: 14px;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.08);
+    z-index: 1;
+  }
+
+  .tick-label {
+    position: absolute;
+    bottom: -2px;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.52rem;
+    color: #3a4058;
+    white-space: nowrap;
+  }
+
+  /* Cycle-specific colors */
+  .synodic .bar-track { background: rgba(240, 216, 144, 0.1); }
+  .synodic .bar-fill { background: linear-gradient(90deg, rgba(240, 216, 144, 0.35), rgba(240, 216, 144, 0.5)); }
+  .synodic .marker { background: #f0d890; box-shadow: 0 0 8px rgba(240, 216, 144, 0.5); }
+  .synodic .marker-glow { background: radial-gradient(circle, rgba(240, 216, 144, 0.2), transparent 70%); }
+  .synodic .marker-label { color: #f0d890; }
+
+  .tropical .bar-track { background: rgba(100, 160, 220, 0.1); }
+  .tropical .bar-fill { background: linear-gradient(90deg, rgba(100, 160, 220, 0.35), rgba(100, 160, 220, 0.5)); }
+  .tropical .marker { background: #6aaCe0; box-shadow: 0 0 8px rgba(100, 160, 220, 0.5); }
+  .tropical .marker-glow { background: radial-gradient(circle, rgba(100, 160, 220, 0.2), transparent 70%); }
+  .tropical .marker-label { color: #6aaCe0; }
+
+  .nodal .bar-track { background: rgba(180, 130, 200, 0.1); }
+  .nodal .bar-fill { background: linear-gradient(90deg, rgba(180, 130, 200, 0.3), rgba(180, 130, 200, 0.45)); }
+  .nodal .marker { background: #b882c8; box-shadow: 0 0 8px rgba(180, 130, 200, 0.5); }
+  .nodal .marker-glow { background: radial-gradient(circle, rgba(180, 130, 200, 0.2), transparent 70%); }
+  .nodal .marker-label { color: #b882c8; }
+
+  .info-box {
+    max-width: 800px;
+    margin-top: 44px;
+    padding: 22px 26px;
+    background: rgba(255,255,255,0.02);
+    border-left: 2px solid #2a3460;
+    font-size: 1rem;
+    line-height: 1.75;
+    color: #6a7090;
+    font-weight: 300;
+  }
+
+  .info-box strong {
+    color: #c8cdd8;
+    font-weight: 400;
+  }
+</style>
+</head>
+<body>
+
+<h1>Three Lunar Cycles</h1>
+<p class="subtitle">Current position as of February 8, 2026</p>
+
+<div class="cycles-container">
+
+  <!-- Synodic Month -->
+  <div class="cycle synodic" id="synodic">
+    <div class="cycle-header">
+      <span class="cycle-name">Synodic Month</span>
+      <span class="cycle-period">29.53 days · governs shape (phase)</span>
+    </div>
+    <div class="cycle-description">New Moon → Full Moon → New Moon</div>
+    <div class="bar-container" id="synodic-bar"></div>
+    <div class="bar-labels">
+      <span>🌑 New Moon</span>
+      <span>🌕 Full Moon</span>
+      <span>🌑 New Moon</span>
+    </div>
+  </div>
+
+  <!-- Tropical Month -->
+  <div class="cycle tropical" id="tropical">
+    <div class="cycle-header">
+      <span class="cycle-name">Tropical Month</span>
+      <span class="cycle-period">27.32 days · governs position (declination)</span>
+    </div>
+    <div class="cycle-description">Max North → Equator → Max South → Equator → Max North</div>
+    <div class="bar-container" id="tropical-bar"></div>
+    <div class="bar-labels">
+      <span>▲ Max North</span>
+      <span>▼ Max South</span>
+      <span>▲ Max North</span>
+    </div>
+  </div>
+
+  <!-- Nodal Cycle -->
+  <div class="cycle nodal" id="nodal">
+    <div class="cycle-header">
+      <span class="cycle-name">Nodal Cycle (Standstill)</span>
+      <span class="cycle-period">18.61 years · governs amplitude of position</span>
+    </div>
+    <div class="cycle-description">Major Standstill → Minor Standstill → Major Standstill</div>
+    <div class="bar-container" id="nodal-bar"></div>
+    <div class="bar-labels">
+      <span>⬥ Major (±28.5°)</span>
+      <span>⬦ Minor (±18.5°)</span>
+      <span>⬥ Major (±28.5°)</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="info-box">
+  <strong>Today, Feb 8 2026:</strong> We are in a <strong>waning gibbous</strong> phase, roughly midway through the current synodic month. The Moon's declination is cycling through its tropical month. And we are just past the peak of the most recent <strong>major standstill</strong> (Jan 2025), so the nodal cycle amplitude is still near its maximum — the Moon is still swinging nearly as far north and south as it can.
+</div>
+
+<script>
+  // ---- Calculations ----
+  const today = new Date(2026, 1, 8); // Feb 8, 2026
+  const MS_PER_DAY = 86400000;
+
+  // --- Synodic month ---
+  // Known new moon: Jan 29, 2025 12:36 UTC (well-known reference)
+  // More recent known new moon: Jan 29, 2026 ~12:36 UTC
+  const newMoonRef = new Date(Date.UTC(2026, 0, 29, 12, 36));
+  const SYNODIC = 29.53059;
+  const daysSinceNewMoon = (today - newMoonRef) / MS_PER_DAY;
+  const synodicProgress = ((daysSinceNewMoon % SYNODIC) + SYNODIC) % SYNODIC / SYNODIC;
+
+  // --- Tropical month ---
+  // The Moon reached max northern declination around Jan 25, 2026 (approximate)
+  const maxNorthRef = new Date(Date.UTC(2026, 0, 25));
+  const TROPICAL = 27.3216;
+  const daysSinceMaxNorth = (today - maxNorthRef) / MS_PER_DAY;
+  const tropicalProgress = ((daysSinceMaxNorth % TROPICAL) + TROPICAL) % TROPICAL / TROPICAL;
+
+  // --- Nodal cycle ---
+  // Major standstill peaked approximately Jan 2025
+  const majorStandstillRef = new Date(Date.UTC(2025, 0, 15));
+  const NODAL_YEARS = 18.613;
+  const NODAL_DAYS = NODAL_YEARS * 365.25;
+  const daysSinceMajor = (today - majorStandstillRef) / MS_PER_DAY;
+  const nodalProgress = ((daysSinceMajor % NODAL_DAYS) + NODAL_DAYS) % NODAL_DAYS / NODAL_DAYS;
+
+  // ---- Render bars ----
+  function buildBar(containerId, progress, cycleClass, daysInCycle, daysElapsed) {
+    const container = document.getElementById(containerId);
+
+    // Track
+    const track = document.createElement('div');
+    track.className = 'bar-track';
+    const fill = document.createElement('div');
+    fill.className = 'bar-fill';
+    fill.style.width = '0%';
+    track.appendChild(fill);
+    container.appendChild(track);
+
+    // Midpoint tick
+    const midTick = document.createElement('div');
+    midTick.className = 'tick';
+    midTick.style.left = '50%';
+    container.appendChild(midTick);
+
+    // Quarter ticks
+    const q1 = document.createElement('div');
+    q1.className = 'tick';
+    q1.style.left = '25%';
+    q1.style.height = '10px';
+    container.appendChild(q1);
+
+    const q3 = document.createElement('div');
+    q3.className = 'tick';
+    q3.style.left = '75%';
+    q3.style.height = '10px';
+    container.appendChild(q3);
+
+    // Glow
+    const glow = document.createElement('div');
+    glow.className = 'marker-glow';
+    glow.style.left = '0%';
+    container.appendChild(glow);
+
+    // Marker
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    marker.style.left = '0%';
+    container.appendChild(marker);
+
+    // Label
+    const label = document.createElement('div');
+    label.className = 'marker-label';
+    label.style.left = '0%';
+
+    const pct = (progress * 100).toFixed(1);
+    label.textContent = `${pct}%`;
+    container.appendChild(label);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        fill.style.width = (progress * 100) + '%';
+        marker.style.left = (progress * 100) + '%';
+        glow.style.left = (progress * 100) + '%';
+        label.style.left = (progress * 100) + '%';
+      }, 100);
+    });
+  }
+
+  // Synodic: progress through current phase cycle
+  const synodicDays = (synodicProgress * SYNODIC).toFixed(1);
+  buildBar('synodic-bar', synodicProgress, 'synodic', SYNODIC, synodicDays);
+
+  // Tropical: progress through current declination cycle
+  const tropicalDays = (tropicalProgress * TROPICAL).toFixed(1);
+  buildBar('tropical-bar', tropicalProgress, 'tropical', TROPICAL, tropicalDays);
+
+  // Nodal: progress through standstill cycle
+  buildBar('nodal-bar', nodalProgress, 'nodal', NODAL_DAYS, null);
+</script>
+
+</body>
+</html>

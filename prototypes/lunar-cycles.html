@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lunar Declination & Phase Interaction</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e1a;
+    color: #c8cdd8;
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: #e8e0d0;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #5a6178;
+    letter-spacing: 0.08em;
+    margin-bottom: 36px;
+    text-align: center;
+  }
+
+  .chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    background: linear-gradient(180deg, #0d1225 0%, #0a0e1a 100%);
+    border: 1px solid #1a2040;
+    border-radius: 4px;
+    padding: 30px 20px 20px 20px;
+    overflow: hidden;
+  }
+
+  .chart-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(60, 80, 140, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+  }
+
+  .legend {
+    display: flex;
+    gap: 28px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: #7a8098;
+    letter-spacing: 0.04em;
+  }
+
+  .legend-swatch {
+    width: 20px;
+    height: 3px;
+    border-radius: 1px;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .explanation {
+    max-width: 900px;
+    margin-top: 32px;
+    padding: 24px 28px;
+    background: rgba(255,255,255,0.02);
+    border-left: 2px solid #2a3460;
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: #8890a8;
+    font-weight: 300;
+  }
+
+  .explanation strong {
+    color: #c8cdd8;
+    font-weight: 400;
+  }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(10, 14, 30, 0.95);
+    border: 1px solid #2a3460;
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: #c8cdd8;
+    line-height: 1.6;
+    display: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<h1>The Moon's Wandering Path</h1>
+<p class="subtitle">Declination cycle (27.3 d) vs. lunar phase cycle (29.5 d) over one year</p>
+
+<div class="chart-container">
+  <canvas id="chart"></canvas>
+  <div class="tooltip" id="tooltip"></div>
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-swatch" style="background: rgba(100, 140, 220, 0.5);"></div>
+    Moon's declination (daily)
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background: #f0d890;"></div>
+    Full Moon position
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background: #2a3460; border: 1.5px solid #5a6888;"></div>
+    New Moon position
+  </div>
+</div>
+
+<div class="explanation">
+  The wavy line shows the Moon's <strong>declination</strong> — how far north or south of the celestial equator it sits — oscillating every <strong>27.3 days</strong> (the tropical month). The golden dots mark each <strong>full moon</strong>. Notice how the full moon dots slowly drift along the wave over the year: in winter they sit near the peaks (high in the sky), and by summer they've migrated to the troughs (low in the sky). This drift occurs because the phase cycle (29.5 days) is slightly longer than the declination cycle, causing them to slip out of sync by about <strong>6 months</strong>.
+</div>
+
+<script>
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+const container = canvas.parentElement;
+
+const DPR = window.devicePixelRatio || 1;
+
+function resize() {
+  const rect = container.getBoundingClientRect();
+  const w = rect.width - 40; // padding
+  const h = Math.min(380, w * 0.45);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width = w * DPR;
+  canvas.height = h * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return { w, h };
+}
+
+// Astronomical constants
+const TROPICAL_MONTH = 27.321;  // days
+const SYNODIC_MONTH = 29.530;   // days
+const MAX_DECLINATION = 28.5;   // degrees (near major standstill)
+const DAYS_IN_YEAR = 365.25;
+
+// Months for x-axis
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_DAYS = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365];
+
+// Compute declination for a given day
+// Start with full moon near max northern declination (winter solstice area)
+const PHASE_OFFSET = 0;  // day 0 = new moon
+const DECL_OFFSET = 0.25; // start near max north
+
+function declination(day) {
+  return MAX_DECLINATION * Math.sin(2 * Math.PI * (day / TROPICAL_MONTH + DECL_OFFSET));
+}
+
+function lunarPhase(day) {
+  // Returns 0-1 where 0 = new moon, 0.5 = full moon
+  return ((day / SYNODIC_MONTH + PHASE_OFFSET) % 1 + 1) % 1;
+}
+
+// Find full moons (phase ≈ 0.5) and new moons (phase ≈ 0)
+function findPhaseEvents() {
+  const fullMoons = [];
+  const newMoons = [];
+
+  for (let day = 0; day < DAYS_IN_YEAR; day += 0.1) {
+    const p1 = lunarPhase(day);
+    const p2 = lunarPhase(day + 0.1);
+
+    // Full moon: phase crosses 0.5
+    if ((p1 < 0.5 && p2 >= 0.5) || (p1 <= 0.5 && p2 > 0.5)) {
+      const d = day + 0.05;
+      fullMoons.push({ day: d, decl: declination(d) });
+    }
+
+    // New moon: phase crosses 0 (wraps from ~1 to ~0)
+    if (p1 > 0.8 && p2 < 0.2) {
+      const d = day + 0.05;
+      newMoons.push({ day: d, decl: declination(d) });
+    }
+  }
+  return { fullMoons, newMoons };
+}
+
+const { fullMoons, newMoons } = findPhaseEvents();
+
+// Drawing
+const MARGIN = { top: 24, right: 16, bottom: 40, left: 52 };
+
+function draw() {
+  const { w, h } = resize();
+  const plotW = w - MARGIN.left - MARGIN.right;
+  const plotH = h - MARGIN.top - MARGIN.bottom;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const xScale = (day) => MARGIN.left + (day / DAYS_IN_YEAR) * plotW;
+  const yScale = (decl) => MARGIN.top + plotH / 2 - (decl / (MAX_DECLINATION * 1.15)) * (plotH / 2);
+
+  // Grid lines - horizontal
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let d = -20; d <= 20; d += 10) {
+    const y = yScale(d);
+    ctx.beginPath();
+    ctx.moveTo(MARGIN.left, y);
+    ctx.lineTo(w - MARGIN.right, y);
+    ctx.stroke();
+  }
+
+  // Zero line
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  const zeroY = yScale(0);
+  ctx.beginPath();
+  ctx.moveTo(MARGIN.left, zeroY);
+  ctx.lineTo(w - MARGIN.right, zeroY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Zero label
+  ctx.fillStyle = '#4a5068';
+  ctx.font = '0.6rem "JetBrains Mono"';
+  ctx.textAlign = 'right';
+  ctx.fillText('0° equator', MARGIN.left - 8, zeroY + 3);
+
+  // Y-axis labels
+  ctx.fillStyle = '#3a4058';
+  ctx.font = '0.55rem "JetBrains Mono"';
+  ctx.textAlign = 'right';
+  ctx.fillText('+28.5° N', MARGIN.left - 8, yScale(MAX_DECLINATION) + 4);
+  ctx.fillText('−28.5° S', MARGIN.left - 8, yScale(-MAX_DECLINATION) + 4);
+
+  // X-axis month labels
+  ctx.fillStyle = '#4a5068';
+  ctx.font = '0.6rem "JetBrains Mono"';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < 12; i++) {
+    const midDay = (MONTH_DAYS[i] + MONTH_DAYS[i + 1]) / 2;
+    ctx.fillText(MONTHS[i], xScale(midDay), h - MARGIN.bottom + 20);
+  }
+
+  // Month dividers
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < 12; i++) {
+    const x = xScale(MONTH_DAYS[i]);
+    ctx.beginPath();
+    ctx.moveTo(x, MARGIN.top);
+    ctx.lineTo(x, h - MARGIN.bottom);
+    ctx.stroke();
+  }
+
+  // Declination wave - filled area
+  ctx.beginPath();
+  ctx.moveTo(xScale(0), zeroY);
+  for (let day = 0; day <= DAYS_IN_YEAR; day += 0.5) {
+    ctx.lineTo(xScale(day), yScale(declination(day)));
+  }
+  ctx.lineTo(xScale(DAYS_IN_YEAR), zeroY);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, MARGIN.top, 0, h - MARGIN.bottom);
+  grad.addColorStop(0, 'rgba(80, 120, 200, 0.12)');
+  grad.addColorStop(0.5, 'rgba(80, 120, 200, 0.02)');
+  grad.addColorStop(1, 'rgba(80, 120, 200, 0.12)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Declination wave - line
+  ctx.beginPath();
+  for (let day = 0; day <= DAYS_IN_YEAR; day += 0.5) {
+    const x = xScale(day);
+    const y = yScale(declination(day));
+    if (day === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = 'rgba(100, 140, 220, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // New moons
+  newMoons.forEach(nm => {
+    const x = xScale(nm.day);
+    const y = yScale(nm.decl);
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#151a2e';
+    ctx.fill();
+    ctx.strokeStyle = '#5a6888';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  });
+
+  // Full moons with glow
+  fullMoons.forEach(fm => {
+    const x = xScale(fm.day);
+    const y = yScale(fm.decl);
+
+    // Glow
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, 14);
+    glow.addColorStop(0, 'rgba(240, 216, 144, 0.25)');
+    glow.addColorStop(1, 'rgba(240, 216, 144, 0)');
+    ctx.beginPath();
+    ctx.arc(x, y, 14, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0d890';
+    ctx.fill();
+  });
+
+  // Draw connecting line through full moons to show drift
+  ctx.beginPath();
+  ctx.setLineDash([3, 5]);
+  ctx.strokeStyle = 'rgba(240, 216, 144, 0.18)';
+  ctx.lineWidth = 1;
+  fullMoons.forEach((fm, i) => {
+    const x = xScale(fm.day);
+    const y = yScale(fm.decl);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Annotations - arrows showing drift
+  ctx.fillStyle = 'rgba(240, 216, 144, 0.4)';
+  ctx.font = '0.6rem "Cormorant Garamond"';
+  ctx.textAlign = 'center';
+
+  if (fullMoons.length > 1) {
+    const fm0 = fullMoons[0];
+    ctx.fillText('Full moon high (winter)', xScale(fm0.day), yScale(fm0.decl) - 14);
+
+    // Find summer full moon (around day 180)
+    const summerFM = fullMoons.reduce((closest, fm) =>
+      Math.abs(fm.day - 182) < Math.abs(closest.day - 182) ? fm : closest
+    );
+    ctx.fillText('Full moon low (summer)', xScale(summerFM.day), yScale(summerFM.decl) + 22);
+  }
+
+  return { w, h, plotW, plotH, xScale, yScale };
+}
+
+let chartDims = draw();
+window.addEventListener('resize', () => { chartDims = draw(); });
+
+// Tooltip on hover
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const { w, h, xScale, yScale } = chartDims;
+  const day = ((mx - MARGIN.left) / (w - MARGIN.left - MARGIN.right)) * DAYS_IN_YEAR;
+
+  if (day < 0 || day > DAYS_IN_YEAR) { tooltip.style.display = 'none'; return; }
+
+  // Check proximity to full/new moons
+  let hit = null;
+  [...fullMoons, ...newMoons].forEach(m => {
+    const dx = mx - xScale(m.day);
+    const dy = my - yScale(m.decl);
+    if (Math.sqrt(dx*dx + dy*dy) < 16) {
+      const isFull = fullMoons.includes(m);
+      const monthIdx = MONTH_DAYS.findIndex((d, i) => MONTH_DAYS[i+1] > m.day) ;
+      const dayInMonth = Math.floor(m.day - MONTH_DAYS[monthIdx]) + 1;
+      hit = {
+        type: isFull ? 'Full Moon' : 'New Moon',
+        date: `${MONTHS[monthIdx]} ${dayInMonth}`,
+        decl: m.decl.toFixed(1),
+        x: mx, y: my
+      };
+    }
+  });
+
+  if (hit) {
+    tooltip.innerHTML = `<strong>${hit.type}</strong><br>${hit.date}<br>Declination: ${hit.decl}°`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (hit.x + 16) + 'px';
+    tooltip.style.top = (hit.y - 10) + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+</script>
+</body>
+</html>

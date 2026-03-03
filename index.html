@@ -137,6 +137,33 @@
         </div>
       </section>
 
+      <!-- ── Sun & Moon Rise/Set Chart ── -->
+      <section class="viz-section">
+        <h2 class="viz-title">Sun &amp; Moon — Day by Day</h2>
+
+        <div class="daychart-container">
+          <canvas id="daychart-canvas"></canvas>
+          <div class="wave-tooltip" id="daychart-tooltip"></div>
+        </div>
+
+        <div class="wave-controls">
+          <button class="daychart-range-btn wave-range-btn active" data-days="91">91 Days</button>
+          <button class="daychart-range-btn wave-range-btn" data-days="181">181 Days</button>
+          <button class="daychart-range-btn wave-range-btn" data-days="365">1 Year</button>
+        </div>
+
+        <div class="wave-legend">
+          <div class="wave-legend-item">
+            <div class="wave-legend-band" style="background:rgba(255,200,80,0.45)"></div>
+            Daylight (sunrise → sunset)
+          </div>
+          <div class="wave-legend-item">
+            <div class="wave-legend-band" style="background:linear-gradient(90deg, rgba(80,110,185,0.15), rgba(255,255,255,0.72))"></div>
+            Moon above horizon (brightness = illumination)
+          </div>
+        </div>
+      </section>
+
       <!-- ── Sky Dome ── -->
       <section class="viz-section">
         <h2 class="viz-title">The Sky Dome</h2>
@@ -154,6 +181,7 @@
 
         <!-- Cycle animation controls -->
         <div class="dome-anim-row">
+          <button class="dome-anim-btn" id="dome-view-btn" title="View from inside dome">⌂ Inside</button>
           <button class="dome-anim-btn" id="dome-anim-btn" title="Show cycle animation">▶ Animate</button>
           <div class="dome-anim-controls" id="dome-anim-controls">
             <label for="dome-anim-speed">Speed:</label>

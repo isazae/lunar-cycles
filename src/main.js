@@ -4,6 +4,7 @@ import SunCalc from 'suncalc';
 import { renderBars } from './bars.js';
 import { renderWaves, initWaves } from './waves.js';
 import { renderDome, initDome } from './dome.js';
+import { renderDayChart, initDayChart } from './daychart.js';
 
 // ── App state ─────────────────────────────────────────────────
 // This object is the single source of truth for the whole app.
@@ -37,6 +38,7 @@ locationInput.value = state.locationName;
 // Called whenever date or location changes.
 function onStateChange() {
   renderBars(state);
+  renderDayChart(state);
   renderWaves(state);
   renderDome(state);
 }
@@ -109,6 +111,7 @@ gpsBtn.addEventListener('click', () => {
 // all containers have non-zero clientWidth/clientHeight.
 initWaves();
 initDome();
+initDayChart();
 requestAnimationFrame(() => onStateChange());
 
 // ── Service Worker registration (PWA offline support) ─────────

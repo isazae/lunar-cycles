@@ -112,6 +112,7 @@ let spherical  = { theta: 0.3, phi: 1.1, radius: 2.8 };
 let isDragging = false;
 let prevMouse  = { x: 0, y: 0 };
 let isRotating = true;   // auto-rotation on/off
+let insideView = false;  // inside (first-person) vs outside (orbital) perspective
 
 // Cycle animation state
 let cycleAnimating  = false;  // is the cycle animation playing?
@@ -276,12 +277,22 @@ function buildDynamicScene(state) {
 
 // ── Camera helpers ────────────────────────────────────────────
 function updateCamera() {
-  camera.position.set(
-    spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
-    spherical.radius * Math.cos(spherical.phi),
-    spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
-  );
-  camera.lookAt(0, 0.15, 0);
+  if (insideView) {
+    // Camera at dome centre, looking in the direction given by spherical (theta, phi)
+    camera.position.set(0, 0.1, 0);
+    camera.lookAt(
+      Math.sin(spherical.phi) * Math.sin(spherical.theta),
+      0.1 + Math.cos(spherical.phi),
+      Math.sin(spherical.phi) * Math.cos(spherical.theta)
+    );
+  } else {
+    camera.position.set(
+      spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+      spherical.radius * Math.cos(spherical.phi),
+      spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+    );
+    camera.lookAt(0, 0.15, 0);
+  }
 }
 
 // ── Interaction setup (once) ──────────────────────────────────
@@ -292,8 +303,14 @@ function attachControls(container) {
   });
   window.addEventListener('mousemove', e => {
     if (!isDragging) return;
-    spherical.theta -= (e.clientX - prevMouse.x) * 0.005;
-    spherical.phi    = Math.max(0.2, Math.min(1.5, spherical.phi + (e.clientY - prevMouse.y) * 0.005));
+    // Inside: drag right looks right (+theta); outside: drag right orbits counterclockwise (-theta)
+    const dTheta = insideView
+      ?  (e.clientX - prevMouse.x) * 0.005
+      : -(e.clientX - prevMouse.x) * 0.005;
+    spherical.theta += dTheta;
+    const phiMin = insideView ? 0.05 : 0.2;
+    const phiMax = insideView ? 1.55 : 1.5;
+    spherical.phi = Math.max(phiMin, Math.min(phiMax, spherical.phi + (e.clientY - prevMouse.y) * 0.005));
     prevMouse = { x: e.clientX, y: e.clientY };
     updateCamera();
   });
@@ -301,8 +318,13 @@ function attachControls(container) {
 
   container.addEventListener('wheel', e => {
     e.preventDefault();
-    spherical.radius = Math.max(1.2, Math.min(7, spherical.radius + e.deltaY * 0.004));
-    updateCamera();
+    if (insideView) {
+      camera.fov = Math.max(20, Math.min(110, camera.fov + e.deltaY * 0.05));
+      camera.updateProjectionMatrix();
+    } else {
+      spherical.radius = Math.max(1.2, Math.min(7, spherical.radius + e.deltaY * 0.004));
+      updateCamera();
+    }
   }, { passive: false });
 
   // Touch
@@ -312,8 +334,13 @@ function attachControls(container) {
   container.addEventListener('touchmove', e => {
     if (!isDragging || e.touches.length !== 1) return;
     e.preventDefault();
-    spherical.theta -= (e.touches[0].clientX - prevMouse.x) * 0.005;
-    spherical.phi    = Math.max(0.2, Math.min(1.5, spherical.phi + (e.touches[0].clientY - prevMouse.y) * 0.005));
+    const dTheta = insideView
+      ?  (e.touches[0].clientX - prevMouse.x) * 0.005
+      : -(e.touches[0].clientX - prevMouse.x) * 0.005;
+    spherical.theta += dTheta;
+    const phiMin = insideView ? 0.05 : 0.2;
+    const phiMax = insideView ? 1.55 : 1.5;
+    spherical.phi = Math.max(phiMin, Math.min(phiMax, spherical.phi + (e.touches[0].clientY - prevMouse.y) * 0.005));
     prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     updateCamera();
   }, { passive: false });
@@ -321,13 +348,21 @@ function attachControls(container) {
 
   // Zoom buttons
   document.getElementById('dome-zoom-in')?.addEventListener('click', () => {
-    spherical.radius = Math.max(1.2, spherical.radius - 0.4); updateCamera();
+    if (insideView) { camera.fov = Math.max(20, camera.fov - 10); camera.updateProjectionMatrix(); }
+    else { spherical.radius = Math.max(1.2, spherical.radius - 0.4); updateCamera(); }
   });
   document.getElementById('dome-zoom-out')?.addEventListener('click', () => {
-    spherical.radius = Math.min(7, spherical.radius + 0.4); updateCamera();
+    if (insideView) { camera.fov = Math.min(110, camera.fov + 10); camera.updateProjectionMatrix(); }
+    else { spherical.radius = Math.min(7, spherical.radius + 0.4); updateCamera(); }
   });
   document.getElementById('dome-zoom-reset')?.addEventListener('click', () => {
-    spherical = { theta: 0.3, phi: 1.1, radius: 2.8 }; updateCamera();
+    if (insideView) {
+      spherical = { theta: 0.3, phi: 0.8, radius: spherical.radius };
+      camera.fov = 75; camera.updateProjectionMatrix();
+    } else {
+      spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+    }
+    updateCamera();
   });
 
   // Pause / play rotation button
@@ -336,6 +371,27 @@ function attachControls(container) {
     const btn = document.getElementById('dome-pause');
     if (btn) btn.textContent = isRotating ? '⏸' : '▶';
     btn.title = isRotating ? 'Pause rotation' : 'Resume rotation';
+  });
+
+  // Inside / outside view toggle
+  document.getElementById('dome-view-btn')?.addEventListener('click', () => {
+    insideView = !insideView;
+    const btn  = document.getElementById('dome-view-btn');
+    const hint = document.querySelector('.dome-hint');
+    if (insideView) {
+      if (btn)  { btn.textContent = '⌒ Outside'; btn.title = 'View from outside dome'; }
+      if (hint) hint.textContent = 'Click and drag to look around · Scroll to zoom';
+      spherical = { theta: 0.3, phi: 0.8, radius: spherical.radius };
+      camera.fov = 75;
+      camera.updateProjectionMatrix();
+    } else {
+      if (btn)  { btn.textContent = '⌂ Inside'; btn.title = 'View from inside dome'; }
+      if (hint) hint.textContent = 'Click and drag to rotate · Scroll to zoom';
+      spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+      camera.fov = 50;
+      camera.updateProjectionMatrix();
+    }
+    updateCamera();
   });
 
   // Cycle animation: speed selector changes daysPerSecond
@@ -419,7 +475,7 @@ export function initDome() {
     animId = requestAnimationFrame(animate);
 
     // Auto-rotation
-    if (!isDragging && isRotating) { spherical.theta += 0.0008; updateCamera(); }
+    if (!isDragging && isRotating) { spherical.theta += insideView ? 0.0003 : 0.0008; updateCamera(); }
 
     // Cycle animation: advance simulated date and rebuild arcs each frame
     if (cycleAnimating && cycleAnimState && scene) {

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Lunar Cycles — Overlapping Waves</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e1a;
+    color: #c8cdd8;
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: #e8e0d0;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #5a6178;
+    letter-spacing: 0.08em;
+    margin-bottom: 36px;
+    text-align: center;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+
+  .chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    background: linear-gradient(180deg, rgba(13,18,37,0.8) 0%, rgba(10,14,26,0.95) 100%);
+    border: 1px solid #1a2040;
+    border-radius: 4px;
+    padding: 24px 16px 16px;
+    overflow: hidden;
+  }
+
+  .chart-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 30%, rgba(60, 80, 140, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+  }
+
+  .legend {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    color: #7a8098;
+    letter-spacing: 0.03em;
+  }
+
+  .legend-line {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.8);
+  }
+
+  .info-box {
+    max-width: 960px;
+    margin-top: 28px;
+    padding: 20px 24px;
+    background: rgba(255,255,255,0.02);
+    border-left: 2px solid #2a3460;
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: #6a7090;
+    font-weight: 300;
+  }
+
+  .info-box strong {
+    color: #c8cdd8;
+    font-weight: 400;
+  }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(10, 14, 30, 0.95);
+    border: 1px solid #2a3460;
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: #c8cdd8;
+    line-height: 1.7;
+    display: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  .controls {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .control-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid #2a3460;
+    color: #7a8098;
+    padding: 6px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .control-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #c8cdd8;
+  }
+
+  .control-btn.active {
+    background: rgba(255,255,255,0.1);
+    color: #e8e0d0;
+    border-color: #4a5480;
+  }
+</style>
+</head>
+<body>
+
+<h1>Three Lunar Cycles Overlaid</h1>
+<p class="subtitle">All three cycles normalized to the same amplitude and displayed over 90 days, with today's position marked on each wave</p>
+
+<div class="chart-container">
+  <canvas id="chart"></canvas>
+  <div class="tooltip" id="tooltip"></div>
+</div>
+
+<div class="controls">
+  <button class="control-btn active" onclick="setRange(90)">90 Days</button>
+  <button class="control-btn" onclick="setRange(180)">180 Days</button>
+  <button class="control-btn" onclick="setRange(365)">1 Year</button>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-line" style="background: rgba(240, 216, 144, 0.8);"></div> Synodic (29.5 d) — phase</div>
+  <div class="legend-item"><div class="legend-line" style="background: rgba(106, 172, 224, 0.8);"></div> Tropical (27.3 d) — declination</div>
+  <div class="legend-item"><div class="legend-line" style="background: rgba(184, 130, 200, 0.8);"></div> Nodal (18.6 yr) — amplitude</div>
+  <div class="legend-item"><div class="legend-dot" style="background: #fff;"></div> Today</div>
+</div>
+
+<div class="info-box">
+  All three waves are shown on the same time axis so you can see how they <strong>drift in and out of phase</strong> with each other. The gold and blue waves have nearly the same frequency, but the gold (synodic) is slightly slower — so it gradually falls behind the blue (tropical). Watch how they start aligned, then slowly separate. This drift is why full moons appear at different heights in the sky throughout the year. The purple wave (nodal) is so slow it appears nearly flat at this timescale — a gentle reminder that it takes <strong>18.6 years</strong> to complete one oscillation.
+</div>
+
+<script>
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+const container = canvas.parentElement;
+const DPR = window.devicePixelRatio || 1;
+const MS_PER_DAY = 86400000;
+
+// Reference dates
+const today = new Date(2026, 1, 8);
+const newMoonRef = new Date(Date.UTC(2026, 0, 29, 12, 36));
+const maxNorthRef = new Date(Date.UTC(2026, 0, 25));
+const majorStandstillRef = new Date(Date.UTC(2025, 0, 15));
+
+const SYNODIC = 29.53059;
+const TROPICAL = 27.3216;
+const NODAL_DAYS = 18.613 * 365.25;
+
+// Phase offsets: how many days into the current cycle we are today
+const synodicOffset = (((today - newMoonRef) / MS_PER_DAY % SYNODIC) + SYNODIC) % SYNODIC;
+const tropicalOffset = (((today - maxNorthRef) / MS_PER_DAY % TROPICAL) + TROPICAL) % TROPICAL;
+// For nodal: majorStandstillRef is the PEAK, so offset by quarter period so sine peaks there
+const nodalDaysSincePeak = (today - majorStandstillRef) / MS_PER_DAY;
+const nodalOffset = nodalDaysSincePeak + NODAL_DAYS * 0.25; // shift so sin=1 at peak
+
+let TOTAL_DAYS = 90;
+const MARGIN = { top: 32, right: 20, bottom: 44, left: 20 };
+
+const WAVES = [
+  {
+    name: 'Synodic',
+    period: SYNODIC,
+    offset: synodicOffset,
+    color: 'rgba(240, 216, 144, 0.75)',
+    fillColor: 'rgba(240, 216, 144, 0.04)',
+    dotColor: '#f0d890',
+    glowColor: 'rgba(240, 216, 144, 0.35)',
+    peakLabel: 'Full',
+    troughLabel: 'New'
+  },
+  {
+    name: 'Tropical',
+    period: TROPICAL,
+    offset: tropicalOffset,
+    color: 'rgba(106, 172, 224, 0.75)',
+    fillColor: 'rgba(106, 172, 224, 0.04)',
+    dotColor: '#6aaCe0',
+    glowColor: 'rgba(106, 172, 224, 0.35)',
+    peakLabel: 'N',
+    troughLabel: 'S'
+  },
+  {
+    name: 'Nodal',
+    period: NODAL_DAYS,
+    offset: nodalOffset,
+    color: 'rgba(184, 130, 200, 0.65)',
+    fillColor: 'rgba(184, 130, 200, 0.03)',
+    dotColor: '#b882c8',
+    glowColor: 'rgba(184, 130, 200, 0.35)',
+    peakLabel: 'Major',
+    troughLabel: 'Minor'
+  }
+];
+
+function sineValue(day, wave) {
+  // day=0 is the start of the chart (TOTAL_DAYS/2 before today)
+  // We need the absolute position in the cycle
+  const startOffset = TOTAL_DAYS / 2; // today is at center
+  const absoluteDay = day - startOffset; // days relative to today
+  const cyclePos = (wave.offset + absoluteDay) / wave.period;
+  return Math.sin(cyclePos * 2 * Math.PI);
+}
+
+function resize() {
+  const rect = container.getBoundingClientRect();
+  const w = rect.width - 32;
+  const h = Math.min(420, Math.max(300, w * 0.42));
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width = w * DPR;
+  canvas.height = h * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return { w, h };
+}
+
+function draw() {
+  const { w, h } = resize();
+  const plotW = w - MARGIN.left - MARGIN.right;
+  const plotH = h - MARGIN.top - MARGIN.bottom;
+  const midY = MARGIN.top + plotH / 2;
+  const amp = plotH / 2 - 8;
+
+  const xScale = (day) => MARGIN.left + (day / TOTAL_DAYS) * plotW;
+  const yScale = (val) => midY - val * amp;
+  const todayDay = TOTAL_DAYS / 2;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Horizontal grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let v = -1; v <= 1; v += 0.5) {
+    if (v === 0) continue;
+    ctx.beginPath();
+    ctx.moveTo(MARGIN.left, yScale(v));
+    ctx.lineTo(w - MARGIN.right, yScale(v));
+    ctx.stroke();
+  }
+
+  // Zero line
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.moveTo(MARGIN.left, midY);
+  ctx.lineTo(w - MARGIN.right, midY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Y-axis labels
+  ctx.fillStyle = '#3a4058';
+  ctx.font = '0.52rem "JetBrains Mono"';
+  ctx.textAlign = 'left';
+  ctx.fillText('+1', MARGIN.left + 2, yScale(1) - 4);
+  ctx.fillText('−1', MARGIN.left + 2, yScale(-1) + 12);
+
+  // Today vertical line
+  const todayX = xScale(todayDay);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.moveTo(todayX, MARGIN.top);
+  ctx.lineTo(todayX, h - MARGIN.bottom);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '500 0.7rem "Cormorant Garamond"';
+  ctx.textAlign = 'center';
+  ctx.fillText('Today', todayX, MARGIN.top - 10);
+
+  // X-axis date labels
+  ctx.fillStyle = '#3a4058';
+  ctx.font = '0.52rem "JetBrains Mono"';
+  ctx.textAlign = 'center';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const startDate = new Date(today.getTime() - (TOTAL_DAYS / 2) * MS_PER_DAY);
+
+  // Choose tick interval based on range
+  let tickInterval = TOTAL_DAYS <= 90 ? 7 : TOTAL_DAYS <= 180 ? 14 : 30;
+  for (let d = 0; d <= TOTAL_DAYS; d += tickInterval) {
+    const date = new Date(startDate.getTime() + d * MS_PER_DAY);
+    const label = `${months[date.getMonth()]} ${date.getDate()}`;
+    const x = xScale(d);
+
+    ctx.fillStyle = '#2a3050';
+    ctx.fillText(label, x, h - MARGIN.bottom + 16);
+
+    // Tick mark
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, MARGIN.top);
+    ctx.lineTo(x, h - MARGIN.bottom);
+    ctx.stroke();
+  }
+
+  // Draw each wave
+  WAVES.forEach((wave, wi) => {
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(xScale(0), midY);
+    for (let d = 0; d <= TOTAL_DAYS; d += 0.3) {
+      ctx.lineTo(xScale(d), yScale(sineValue(d, wave)));
+    }
+    ctx.lineTo(xScale(TOTAL_DAYS), midY);
+    ctx.closePath();
+    ctx.fillStyle = wave.fillColor;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    for (let d = 0; d <= TOTAL_DAYS; d += 0.3) {
+      const x = xScale(d);
+      const y = yScale(sineValue(d, wave));
+      if (d === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = wave.color;
+    ctx.lineWidth = wi === 2 ? 2.5 : 1.8; // nodal slightly thicker
+    ctx.stroke();
+
+    // Peak/trough labels for synodic and tropical only
+    if (wi < 2) {
+      ctx.font = '0.48rem "JetBrains Mono"';
+      for (let d = 0; d <= TOTAL_DAYS; d += 0.5) {
+        const v = sineValue(d, wave);
+        const vNext = sineValue(d + 0.5, wave);
+        // Peak
+        if (v > 0.998 && vNext < v) {
+          ctx.fillStyle = wave.color.replace('0.75', '0.35');
+          ctx.textAlign = 'center';
+          ctx.fillText(wave.peakLabel, xScale(d), yScale(v) - 8);
+        }
+        // Trough
+        if (v < -0.998 && vNext > v) {
+          ctx.fillStyle = wave.color.replace('0.75', '0.35');
+          ctx.textAlign = 'center';
+          ctx.fillText(wave.troughLabel, xScale(d), yScale(v) + 14);
+        }
+      }
+    }
+
+    // Today dot
+    const todayVal = sineValue(todayDay, wave);
+    const dx = todayX;
+    const dy = yScale(todayVal);
+
+    // Glow
+    const glow = ctx.createRadialGradient(dx, dy, 0, dx, dy, 16);
+    glow.addColorStop(0, wave.glowColor);
+    glow.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(dx, dy, 16, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(dx, dy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+
+    // Inner dot
+    ctx.beginPath();
+    ctx.arc(dx, dy, 4, 0, Math.PI * 2);
+    ctx.fillStyle = wave.dotColor;
+    ctx.fill();
+  });
+
+  return { w, h, plotW, plotH, midY, amp, xScale, yScale, todayDay };
+}
+
+let dims = draw();
+window.addEventListener('resize', () => { dims = draw(); });
+
+// Tooltip
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const { w, xScale, yScale, todayDay } = dims;
+  const plotW = w - MARGIN.left - MARGIN.right;
+  const day = ((mx - MARGIN.left) / plotW) * TOTAL_DAYS;
+
+  if (day < 0 || day > TOTAL_DAYS) { tooltip.style.display = 'none'; return; }
+
+  const daysFromToday = Math.round(day - todayDay);
+  const dateLabel = daysFromToday === 0 ? 'Today' :
+    daysFromToday > 0 ? `+${daysFromToday}d` : `${daysFromToday}d`;
+
+  const date = new Date(today.getTime() + (day - todayDay) * MS_PER_DAY);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = `${months[date.getMonth()]} ${date.getDate()}`;
+
+  const synodicVal = sineValue(day, WAVES[0]);
+  const tropicalVal = sineValue(day, WAVES[1]);
+  const nodalVal = sineValue(day, WAVES[2]);
+
+  // Phase name
+  let phaseName = '';
+  if (synodicVal > 0.9) phaseName = '(Full Moon)';
+  else if (synodicVal < -0.9) phaseName = '(New Moon)';
+  else if (synodicVal > 0) phaseName = synodicVal > sineValue(day - 1, WAVES[0]) ? '(Waxing)' : '(Waning)';
+  else phaseName = synodicVal < sineValue(day - 1, WAVES[0]) ? '(Waning)' : '(Waxing)';
+
+  tooltip.innerHTML = `<strong>${dateStr}</strong> (${dateLabel})<br>` +
+    `<span style="color:#f0d890">Synodic:</span> ${synodicVal.toFixed(2)} ${phaseName}<br>` +
+    `<span style="color:#6aaCe0">Tropical:</span> ${tropicalVal.toFixed(2)}<br>` +
+    `<span style="color:#b882c8">Nodal:</span> ${nodalVal.toFixed(2)}`;
+
+  tooltip.style.display = 'block';
+  let tx = mx + 16;
+  if (tx + 180 > canvas.clientWidth) tx = mx - 180;
+  tooltip.style.left = tx + 'px';
+  tooltip.style.top = (my - 10) + 'px';
+});
+
+canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+// Range controls
+function setRange(days) {
+  TOTAL_DAYS = days;
+  dims = draw();
+  document.querySelectorAll('.control-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(days === 365 ? '1 Year' : days + ''));
+  });
+}
+</script>
+
+</body>
+</html>
