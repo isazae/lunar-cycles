@@ -1,22 +1,19 @@
-// src/timeline.js — 48-hour horizontal timeline strip
+// src/timeline.js — horizontal timeline strip
 //
-// Shows sun and moon as domes (upper half-ellipses) that begin at rise,
-// peak at transit, and end at set — within a 48-hour window centred on
-// tonight's midnight:
-//   left edge  = yesterday midnight (= start of today)
-//   centre     = tonight midnight   (= start of tomorrow)
-//   right edge = tomorrow midnight  (= start of day after tomorrow)
+// Three view modes (selectable via buttons):
+//   3 days  — 3-day window with today at centre
+//  15 days  — 15-day window with today at centre
+//  29 days  — 29-day window with today at centre (≈ synodic month)
 
 import SunCalc from 'suncalc';
-import { MS_PER_DAY, stdMidnight } from './astronomy.js';
+import { MS_PER_DAY, stdMidnight, MONTHS } from './astronomy.js';
 
-const DPR    = window.devicePixelRatio || 1;
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DPR = window.devicePixelRatio || 1;
 
 // ── Layout constants ──────────────────────────────────────────
-const STRIP_TOP    = 18; // px above strip (day name labels)
-const STRIP_H      = 80; // strip height — taller gives better dome aspect ratio
-const STRIP_BOTTOM = 16; // px below strip (date / midnight labels)
+const STRIP_TOP    = 18;  // px above strip (day labels)
+const STRIP_H      = 140; // strip height
+const STRIP_BOTTOM = 16;  // px below strip (date labels)
 const CANVAS_H     = STRIP_TOP + STRIP_H + STRIP_BOTTOM;
 
 // Sun declination extremes (degrees)
@@ -26,8 +23,7 @@ const SUN_DEC_MIN = -23.44;
 const MOON_DEC_MAX =  28.5;
 const MOON_DEC_MIN = -28.5;
 
-// Fraction of strip height that a body's upper transit reaches from the baseline.
-// Uses the exact formula: sin(alt) = sin(lat)·sin(dec) + cos(lat)·cos(dec).
+// Fraction of strip height a body's upper transit reaches from the baseline.
 function culminationAltFrac(decDeg, latDeg) {
   const dec    = decDeg * Math.PI / 180;
   const lat    = latDeg * Math.PI / 180;
@@ -38,20 +34,32 @@ function culminationAltFrac(decDeg, latDeg) {
 }
 
 let currentState = null;
+let currentDays  = 3;   // active range: 3 | 15 | 29
 
-// ── Moon rise/set intervals with actual (unclamped) timestamps ─
-// Searches ±24 h outside the strip window so that a dome which started
-// yesterday still has its correct peak position when clipped to the strip.
+// ── Compute time window from a reference date + days setting ──
+// Today's date column is always centred in the window.
+function getWindow(ref, days) {
+  const y         = ref.getFullYear(), mo = ref.getMonth(), d = ref.getDate();
+  const half      = Math.floor(days / 2);
+  const t0        = stdMidnight(y, mo, d - half);
+  const tToday    = stdMidnight(y, mo, d);
+  const tTomorrow = stdMidnight(y, mo, d + 1);
+  const t2        = stdMidnight(y, mo, d - half + days);
+  return { t0, tToday, tTomorrow, t2 };
+}
+
+// ── Moon rise/set intervals over any window ───────────────────
+// Searches ±1 day outside the window so cross-midnight domes draw correctly.
 function getMoonIntervals(t0, t2, lat, lon) {
+  const windowDays = Math.ceil((t2 - t0) / MS_PER_DAY);
   const allMt = [];
-  for (let dayOffset = -1; dayOffset <= 3; dayOffset++) {
-    const d = new Date(t0.getTime() + dayOffset * MS_PER_DAY);
+  for (let off = -1; off <= windowDays + 1; off++) {
+    const d  = new Date(t0.getTime() + off * MS_PER_DAY);
     const d0 = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
     allMt.push(SunCalc.getMoonTimes(d0, lat, lon));
     allMt.push(SunCalc.getMoonTimes(new Date(d0.getTime() + MS_PER_DAY), lat, lon));
   }
 
-  // Collect unique events in extended window [t0 − 24h, t2 + 24h].
   const extStart = new Date(t0.getTime() - MS_PER_DAY);
   const extEnd   = new Date(t2.getTime() + MS_PER_DAY);
   const seen = new Set(), events = [];
@@ -65,68 +73,53 @@ function getMoonIntervals(t0, t2, lat, lon) {
   }
   events.sort((a, b) => a.t - b.t);
 
-  // Is moon above horizon at the start of the window?
   const altAtT0 = SunCalc.getMoonPosition(new Date(t0.getTime() + 60000), lat, lon).altitude;
   let isUp = altAtT0 > 0;
 
-  // If up at t0, find the most recent rise before t0 (gives correct dome peak).
   let currentRise = null;
   if (isUp) {
     const risesBeforeT0 = events.filter(e => e.type === 'rise' && e.t <= t0);
     currentRise = risesBeforeT0.length > 0
       ? risesBeforeT0[risesBeforeT0.length - 1].t
-      : t0; // fallback if rise predates our search window
+      : t0;
   }
 
   const intervals = [];
   for (const ev of events) {
-    if (ev.t <= t0) continue; // state already initialised above
-    if (ev.type === 'rise' && !isUp) {
-      currentRise = ev.t; isUp = true;
-    } else if (ev.type === 'set' && isUp) {
+    if (ev.t <= t0) continue;
+    if (ev.type === 'rise' && !isUp) { currentRise = ev.t; isUp = true; }
+    else if (ev.type === 'set' && isUp) {
       if (currentRise !== null) intervals.push({ rise: currentRise, set: ev.t });
       currentRise = null; isUp = false;
     }
   }
-
-  // Moon still up at the end of the window — find the next set.
   if (isUp && currentRise !== null) {
     const setsAfterT2 = events.filter(e => e.type === 'set' && e.t > t2);
-    const nextSet = setsAfterT2.length > 0
-      ? setsAfterT2[0].t
-      : new Date(t2.getTime() + MS_PER_DAY);
-    intervals.push({ rise: currentRise, set: nextSet });
+    intervals.push({
+      rise: currentRise,
+      set: setsAfterT2.length > 0 ? setsAfterT2[0].t : new Date(t2.getTime() + MS_PER_DAY),
+    });
   }
-
   return intervals;
 }
 
-// ── Draw a dome (upper half-ellipse) ─────────────────────────
-// x1/x2 are the rise/set x positions (may be outside the canvas — caller clips).
-// altFrac (0–1) scales dome height: 1 = zenith passage, 0 = barely above horizon.
-// The dome baseline is always at sy + stripH; the peak rises proportionally.
-// Canvas ellipse angles (y-axis points down):
-//   angle 0    → right point  (cx+rx, baseline)
-//   angle π    → left point   (cx−rx, baseline)
-//   angle 3π/2 → top point    (cx,    baseline−ry)
-// Going clockwise (counterclockwise=false) from π to 2π traces the upper arc.
+// ── Draw a dome (upper half-ellipse) ──────────────────────────
 function drawDome(ctx, x1, x2, sy, stripH, altFrac, fillStyle) {
   if (x2 <= x1) return;
   const cx       = (x1 + x2) / 2;
   const rx       = (x2 - x1) / 2;
   const ry       = stripH * Math.max(0, altFrac);
   const baseline = sy + stripH;
-  if (ry < 1) return; // too low to draw meaningfully
-
+  if (ry < 1) return;
   ctx.beginPath();
-  ctx.ellipse(cx, baseline, rx, ry, 0, Math.PI, 0, false); // upper arc, left → top → right
-  ctx.closePath(); // straight line along the baseline closes the shape
+  ctx.ellipse(cx, baseline, rx, ry, 0, Math.PI, 0, false);
+  ctx.closePath();
   ctx.fillStyle = fillStyle;
   ctx.fill();
 }
 
 // ── Draw ──────────────────────────────────────────────────────
-function draw(canvas, state) {
+function draw(canvas, state, days) {
   const container = canvas.parentElement;
   const w = container.clientWidth;
   canvas.style.width  = w + 'px';
@@ -138,96 +131,106 @@ function draw(canvas, state) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.clearRect(0, 0, w, CANVAS_H);
 
-  const ref = state.date;
-  const y = ref.getFullYear(), mo = ref.getMonth(), d = ref.getDate();
-
-  // 48-hour window
-  const t0 = stdMidnight(y, mo, d);      // yesterday midnight = left edge
-  const t1 = stdMidnight(y, mo, d + 1); // tonight midnight   = centre
-  const t2 = stdMidnight(y, mo, d + 2); // tomorrow midnight  = right edge
-
-  const sy  = STRIP_TOP;
-  const toX = t => ((t - t0) / (t2 - t0)) * w;
+  const { t0, tToday, tTomorrow, t2 } = getWindow(state.date, days);
+  const numDays = Math.round((t2 - t0) / MS_PER_DAY);
+  const sy      = STRIP_TOP;
+  const toX     = t => ((t - t0) / (t2 - t0)) * w;
 
   // ── Strip background ──
   ctx.fillStyle = 'rgba(16, 22, 44, 0.95)';
   ctx.fillRect(0, sy, w, STRIP_H);
 
-  // ── Build gradients (vertical: bright at dome peak/top, dim at baseline) ──
+  // ── Gradients ──
   const sunGrad = ctx.createLinearGradient(0, sy, 0, sy + STRIP_H);
-  sunGrad.addColorStop(0,    'rgba(255,215,105,0.58)'); // peak (zenith)
+  sunGrad.addColorStop(0,    'rgba(255,215,105,0.58)');
   sunGrad.addColorStop(0.65, 'rgba(255,195,75,0.42)');
-  sunGrad.addColorStop(1,    'rgba(255,130,30,0.08)');  // baseline (horizon)
+  sunGrad.addColorStop(1,    'rgba(255,130,30,0.08)');
 
-  const illum  = SunCalc.getMoonIllumination(ref).fraction;
-  const mr     = Math.round(80  + illum * 175);
-  const mg     = Math.round(110 + illum * 145);
-  const mb     = Math.round(185 + illum * 70);
-  const maTop  = (0.08 + illum * 0.67).toFixed(2);
+  const illum    = SunCalc.getMoonIllumination(state.date).fraction;
+  const mr       = Math.round(80  + illum * 175);
+  const mg       = Math.round(110 + illum * 145);
+  const mb       = Math.round(185 + illum * 70);
+  const maTop    = (0.08 + illum * 0.67).toFixed(2);
   const moonGrad = ctx.createLinearGradient(0, sy, 0, sy + STRIP_H);
-  moonGrad.addColorStop(0, `rgba(${mr},${mg},${mb},${maTop})`); // peak (zenith)
-  moonGrad.addColorStop(1, `rgba(${mr},${mg},${mb},0.03)`);     // baseline (horizon)
+  moonGrad.addColorStop(0, `rgba(${mr},${mg},${mb},${maTop})`);
+  moonGrad.addColorStop(1, `rgba(${mr},${mg},${mb},0.03)`);
 
-  // ── Clip all dome drawing to the strip area ──
+  // ── Clip all dome drawing to the strip ──
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, sy, w, STRIP_H);
   ctx.clip();
 
+  // ── Today column highlight + day separators ──
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fillRect(toX(tToday), sy, toX(tTomorrow) - toX(tToday), STRIP_H);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth   = 0.5;
+  ctx.setLineDash([]);
+  for (let i = 1; i < numDays; i++) {
+    const x = toX(new Date(t0.getTime() + i * MS_PER_DAY));
+    ctx.beginPath(); ctx.moveTo(x, sy); ctx.lineTo(x, sy + STRIP_H); ctx.stroke();
+  }
+
   // ── Reference altitude lines ──
-  // Horizontal dashed lines showing each body's extreme culmination altitudes
-  // at this latitude, so domes can be read against a fixed scale.
   const baseline = sy + STRIP_H;
   const refLines = [
-    { frac: culminationAltFrac(MOON_DEC_MAX, state.lat), stroke: 'rgba(160,200,255,0.55)', label: '☽ max' },
-    { frac: culminationAltFrac(MOON_DEC_MIN, state.lat), stroke: 'rgba(160,200,255,0.35)', label: '☽ min' },
-    { frac: culminationAltFrac(SUN_DEC_MAX,  state.lat), stroke: 'rgba(255,220,100,0.55)', label: '☀ max' },
-    { frac: culminationAltFrac(SUN_DEC_MIN,  state.lat), stroke: 'rgba(255,220,100,0.35)', label: '☀ min' },
+    { frac: culminationAltFrac(MOON_DEC_MAX, state.lat), stroke: 'rgba(160,200,255,0.85)', label: '☽ max', col: 0 },
+    { frac: culminationAltFrac(MOON_DEC_MIN, state.lat), stroke: 'rgba(160,200,255,0.60)', label: '☽ min', col: 0 },
+    { frac: culminationAltFrac(SUN_DEC_MAX,  state.lat), stroke: 'rgba(255,220,100,0.85)', label: '☀ max', col: 1 },
+    { frac: culminationAltFrac(SUN_DEC_MIN,  state.lat), stroke: 'rgba(255,220,100,0.60)', label: '☀ min', col: 1 },
   ];
-  ctx.font         = '8px "JetBrains Mono"';
+  const LBL_PAD_X = 3, LBL_PAD_Y = 2, LBL_H = 9;
+  ctx.font = '9px "JetBrains Mono"';
   ctx.textBaseline = 'middle';
-  refLines.forEach(({ frac, stroke, label }) => {
-    if (frac < 0.01) return; // body never clears the horizon at this latitude
+  refLines.forEach(({ frac, stroke, label, col }) => {
+    if (frac < 0.01) return;
     const lineY = baseline - STRIP_H * frac;
     if (lineY <= sy || lineY >= sy + STRIP_H) return;
 
     ctx.strokeStyle = stroke;
     ctx.lineWidth   = 0.75;
     ctx.setLineDash([2, 5]);
-    ctx.beginPath();
-    ctx.moveTo(0, lineY);
-    ctx.lineTo(w, lineY);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(w, lineY); ctx.stroke();
     ctx.setLineDash([]);
 
+    const altDeg    = Math.round(frac * 90);
+    const leftLabel = `${altDeg}°`;
+    const leftTextW = ctx.measureText(leftLabel).width;
+    const leftStart = 3 + col * 30;
+    ctx.fillStyle = 'rgba(8,12,28,0.82)';
+    ctx.fillRect(leftStart, lineY - LBL_H / 2 - LBL_PAD_Y, leftTextW + LBL_PAD_X * 2, LBL_H + LBL_PAD_Y * 2);
+    ctx.fillStyle = stroke;
+    ctx.textAlign = 'left';
+    ctx.fillText(leftLabel, leftStart + LBL_PAD_X, lineY);
+
+    const labelRight = w - 4 - col * 52;
+    const rightTextW = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(8,12,28,0.82)';
+    ctx.fillRect(labelRight - rightTextW - LBL_PAD_X, lineY - LBL_H / 2 - LBL_PAD_Y, rightTextW + LBL_PAD_X * 2, LBL_H + LBL_PAD_Y * 2);
     ctx.fillStyle = stroke;
     ctx.textAlign = 'right';
-    ctx.fillText(label, w - 3, lineY - 4);
+    ctx.fillText(label, labelRight, lineY);
   });
 
-  // ── Sun domes: one per day (today + tomorrow) ──
-  // altFrac = peak altitude / 90° — scales dome height to the sun's culmination.
-  const sunNoons = [
-    new Date(t0.getTime() + 12 * 3600000), // today noon
-    new Date(t1.getTime() + 12 * 3600000), // tomorrow noon
-  ];
-  sunNoons.forEach(noon => {
+  // ── Sun domes: one per day ──
+  for (let i = 0; i < numDays; i++) {
+    const noon = new Date(t0.getTime() + (i + 0.5) * MS_PER_DAY);
     const sunT = SunCalc.getTimes(noon, state.lat, state.lon);
     const sr = sunT.sunrise, ss = sunT.sunset;
-    if (!sr || !ss) return;
-    const peakAlt   = SunCalc.getPosition(sunT.solarNoon, state.lat, state.lon).altitude;
-    const sunAltFrac = Math.max(0, peakAlt) / (Math.PI / 2);
-    drawDome(ctx, toX(sr), toX(ss), sy, STRIP_H, sunAltFrac, sunGrad);
-  });
+    if (!sr || !ss) continue;
+    const peakAlt  = SunCalc.getPosition(sunT.solarNoon, state.lat, state.lon).altitude;
+    const altFrac  = Math.max(0, peakAlt) / (Math.PI / 2);
+    drawDome(ctx, toX(sr), toX(ss), sy, STRIP_H, altFrac, sunGrad);
+  }
 
   // ── Moon domes ──
-  // Use actual (unclamped) rise/set times; partial domes are clipped by the strip.
-  // altFrac sampled at the midpoint of each rise-set interval (≈ transit time).
   getMoonIntervals(t0, t2, state.lat, state.lon).forEach(({ rise, set }) => {
-    const mid        = new Date((rise.getTime() + set.getTime()) / 2);
-    const peakAlt    = SunCalc.getMoonPosition(mid, state.lat, state.lon).altitude;
-    const moonAltFrac = Math.max(0, peakAlt) / (Math.PI / 2);
-    drawDome(ctx, toX(rise), toX(set), sy, STRIP_H, moonAltFrac, moonGrad);
+    const mid     = new Date((rise.getTime() + set.getTime()) / 2);
+    const peakAlt = SunCalc.getMoonPosition(mid, state.lat, state.lon).altitude;
+    const altFrac = Math.max(0, peakAlt) / (Math.PI / 2);
+    drawDome(ctx, toX(rise), toX(set), sy, STRIP_H, altFrac, moonGrad);
   });
 
   ctx.restore(); // end clip
@@ -238,31 +241,23 @@ function draw(canvas, state) {
   ctx.setLineDash([]);
   ctx.strokeRect(0.25, sy + 0.25, w - 0.5, STRIP_H - 0.5);
 
-  // ── Tonight midnight line (centre) ──
-  const midX = toX(t1);
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  // ── Today reference line (left edge of today column) ──
+  const refLineX = toX(tToday);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
   ctx.lineWidth   = 1;
   ctx.setLineDash([3, 5]);
-  ctx.beginPath();
-  ctx.moveTo(midX, sy);
-  ctx.lineTo(midX, sy + STRIP_H);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(refLineX, sy); ctx.lineTo(refLineX, sy + STRIP_H); ctx.stroke();
   ctx.setLineDash([]);
 
   // ── "Now" marker ──
-  // Uses the real clock so it stays accurate even when the user navigates dates.
   const realNow = new Date();
   const nowX    = toX(realNow);
   if (realNow >= t0 && realNow <= t2) {
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth   = 1.5;
     ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(nowX, sy - 2);
-    ctx.lineTo(nowX, sy + STRIP_H);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nowX, sy - 2); ctx.lineTo(nowX, sy + STRIP_H); ctx.stroke();
 
-    // Small downward-pointing triangle above the strip
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     ctx.beginPath();
     ctx.moveTo(nowX,     sy - 2);
@@ -273,30 +268,27 @@ function draw(canvas, state) {
   }
 
   // ── Labels ──
-  ctx.font         = `10px "JetBrains Mono"`;
+  ctx.font         = '10px "JetBrains Mono"';
   ctx.setLineDash([]);
-
-  // Above strip: "Today" / "Tomorrow"
   ctx.textBaseline = 'middle';
-  ctx.fillStyle    = '#2a3050';
-  ctx.textAlign    = 'center';
-  ctx.fillText('Today',    w * 0.25, sy - 9);
-  ctx.fillText('Tomorrow', w * 0.75, sy - 9);
 
-  // Below strip: date at left edge, "midnight" at centre, date at right edge
-  const lblY = sy + STRIP_H + 9;
-
-  const t0date = new Date(t0.getTime() + 60000);
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#2a3050';
-  ctx.fillText(`${MONTHS[t0date.getMonth()]} ${t0date.getDate()}`, 2, lblY);
-
+  // "Today" label above today's column; date labels below at regular intervals
+  const todayCx = (toX(tToday) + toX(tTomorrow)) / 2;
+  ctx.fillStyle = '#3a4060';
   ctx.textAlign = 'center';
-  ctx.fillText('midnight', midX, lblY);
+  ctx.fillText('Today', todayCx, sy - 9);
 
-  const t2date = new Date(t2.getTime() + 60000);
-  ctx.textAlign = 'right';
-  ctx.fillText(`${MONTHS[t2date.getMonth()]} ${t2date.getDate()}`, w - 2, lblY);
+  const lblY = sy + STRIP_H + 9;
+  const step  = Math.max(1, Math.round(numDays / 7));
+  ctx.fillStyle = '#2a3050';
+  for (let i = 0; i <= numDays; i += step) {
+    const t   = new Date(t0.getTime() + i * MS_PER_DAY + 60000);
+    const lbl = `${MONTHS[t.getMonth()]} ${t.getDate()}`;
+    const x   = toX(new Date(t0.getTime() + i * MS_PER_DAY));
+    if (i === 0)                 { ctx.textAlign = 'left';   ctx.fillText(lbl, Math.max(2, x), lblY); }
+    else if (i + step > numDays) { ctx.textAlign = 'right';  ctx.fillText(lbl, Math.min(w - 2, x), lblY); }
+    else                         { ctx.textAlign = 'center'; ctx.fillText(lbl, x, lblY); }
+  }
 }
 
 // ── Public API ────────────────────────────────────────────────
@@ -305,13 +297,82 @@ export function renderTimeline(state) {
   currentState = state;
   const canvas = document.getElementById('timeline-canvas');
   if (!canvas) return;
-  draw(canvas, state);
+  draw(canvas, state, currentDays);
 }
 
 export function initTimeline() {
   const canvas = document.getElementById('timeline-canvas');
   if (!canvas) return;
+
+  const container = canvas.parentElement;
+
+  // ── Hover overlay: vertical crosshair + sun/moon altitude readout ──
+  const hoverLine = document.createElement('div');
+  hoverLine.className    = 'timeline-hover-line';
+  hoverLine.style.top    = `${STRIP_TOP}px`;
+  hoverLine.style.height = `${STRIP_H}px`;
+  container.appendChild(hoverLine);
+
+  const hoverTip = document.createElement('div');
+  hoverTip.className = 'timeline-hover-tooltip';
+  container.appendChild(hoverTip);
+
+  canvas.addEventListener('mousemove', e => {
+    if (!currentState) return;
+    const rect   = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (mouseY < STRIP_TOP || mouseY > STRIP_TOP + STRIP_H) {
+      hoverLine.style.display = 'none';
+      hoverTip.style.display  = 'none';
+      return;
+    }
+
+    const { t0, t2 } = getWindow(currentState.date, currentDays);
+    const t = new Date(t0.getTime() + (mouseX / rect.width) * (t2 - t0));
+
+    const sunAlt  = SunCalc.getPosition(t, currentState.lat, currentState.lon).altitude;
+    const moonAlt = SunCalc.getMoonPosition(t, currentState.lat, currentState.lon).altitude;
+    const sunDeg  = Math.round(sunAlt  * 180 / Math.PI);
+    const moonDeg = Math.round(moonAlt * 180 / Math.PI);
+
+    const hh = t.getHours().toString().padStart(2, '0');
+    const mm = t.getMinutes().toString().padStart(2, '0');
+    const timeLabel = `${MONTHS[t.getMonth()]} ${t.getDate()} ${hh}:${mm}`;
+
+    hoverLine.style.display = 'block';
+    hoverLine.style.left    = `${mouseX}px`;
+    hoverTip.style.display  = 'block';
+    hoverTip.style.top      = `${STRIP_TOP + STRIP_H / 2}px`;
+    hoverTip.innerHTML      = `${timeLabel}<br>☀ ${sunDeg}°<br>☽ ${moonDeg}°`;
+
+    const TIP_GAP = 10;
+    if (mouseX < rect.width - 90) {
+      hoverTip.style.left  = `${mouseX + TIP_GAP}px`;
+      hoverTip.style.right = 'auto';
+    } else {
+      hoverTip.style.left  = 'auto';
+      hoverTip.style.right = `${rect.width - mouseX + TIP_GAP}px`;
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoverLine.style.display = 'none';
+    hoverTip.style.display  = 'none';
+  });
+
+  // ── Range buttons ──
+  document.querySelectorAll('.timeline-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.timeline-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDays = parseInt(btn.dataset.days, 10);
+      if (currentState) draw(canvas, currentState, currentDays);
+    });
+  });
+
   window.addEventListener('resize', () => {
-    if (currentState) draw(canvas, currentState);
+    if (currentState) draw(canvas, currentState, currentDays);
   });
 }

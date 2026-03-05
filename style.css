@@ -176,6 +176,23 @@ main {
   margin-bottom: 2.5rem;
 }
 
+.chart-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: center;
+  margin: 0 0 0.5rem 0;
+  opacity: 0.6;
+}
+
+/* Extra breathing room when a subtitle follows a controls row */
+.wave-controls + .chart-subtitle {
+  margin-top: 2rem;
+}
+
 /* ── Cycle rows ────────────────────────────────────────────── */
 .cycles {
   display: flex;
@@ -204,11 +221,6 @@ main {
   color: var(--text-dim);
 }
 
-.cycle-desc {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  margin-bottom: 1rem;
-}
 
 /* ── Bar ───────────────────────────────────────────────────── */
 .bar-container {
@@ -321,6 +333,29 @@ main {
   width: 100%;
 }
 
+.timeline-hover-line {
+  position: absolute;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  display: none;
+  transform: translateX(-50%);
+}
+
+.timeline-hover-tooltip {
+  position: absolute;
+  background: rgba(8, 12, 28, 0.88);
+  color: rgba(255, 255, 255, 0.88);
+  font: 9px "JetBrains Mono", monospace;
+  line-height: 1.6;
+  padding: 3px 7px;
+  border-radius: 2px;
+  pointer-events: none;
+  display: none;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
 /* ── Day chart ─────────────────────────────────────────────── */
 .daychart-container {
   position: relative;
@@ -426,6 +461,13 @@ main {
   flex-shrink: 0;
 }
 
+.wave-legend-band {
+  width: 22px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 .wave-legend-dot {
   width: 8px;
   height: 8px;
@@ -483,7 +525,7 @@ main {
 
 .dome-hint {
   text-align: center;
-  font-size: 0.58rem;
+  font-size: 0.6rem;
   color: var(--text-dim);
   opacity: 0.6;
   margin-top: 0.5rem;
@@ -492,9 +534,8 @@ main {
 
 .dome-legend {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.4rem;
   margin-top: 0.75rem;
   font-size: 0.6rem;
   color: var(--text-dim);
@@ -531,22 +572,22 @@ main {
 }
 
 .dome-anim-btn {
-  padding: 0.3rem 0.85rem;
-  background: rgba(26,32,56,0.85);
-  border: 1px solid rgba(58,72,112,0.8);
-  border-radius: 4px;
-  color: rgba(240,216,144,0.85);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.6rem;
+  background: rgba(255 255 255 / 0.04);
+  border: 1px solid rgba(42,52,96,0.8);
+  border-radius: 3px;
+  color: var(--text-dim);
+  padding: 5px 14px;
   letter-spacing: 0.04em;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
   white-space: nowrap;
 }
 
 .dome-anim-btn:hover {
-  background: rgba(40,50,80,0.9);
-  color: rgb(240,216,144);
+  background: rgba(255 255 255 / 0.08);
+  color: var(--text);
 }
 
 .dome-anim-controls {
@@ -568,7 +609,7 @@ main {
   border-radius: 3px;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.65rem;
   padding: 0.15rem 0.4rem;
   cursor: pointer;
 }

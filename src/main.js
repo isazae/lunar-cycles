@@ -1,6 +1,5 @@
 // src/main.js — app entry point
 
-import SunCalc from 'suncalc';
 import { renderBars } from './bars.js';
 import { renderWaves, initWaves } from './waves.js';
 import { renderDome, initDome } from './dome.js';

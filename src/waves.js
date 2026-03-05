@@ -3,11 +3,10 @@
 import SunCalc from 'suncalc';
 import {
   MS_PER_DAY, SYNODIC, TROPICAL, NODAL_DAYS, MAJOR_STANDSTILL,
-  getMoonDeclinationDeg, moonDeclinationAmplitude,
+  getMoonDeclinationDeg, moonDeclinationAmplitude, MONTHS,
 } from './astronomy.js';
 
 const MARGIN = { top: 36, right: 20, bottom: 48, left: 20 };
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DPR    = window.devicePixelRatio || 1;
 
 let totalDays    = 91;  // matches the active range button default
@@ -298,11 +297,15 @@ function attachTooltip(canvas, tooltip) {
 }
 
 // ── Range toggle buttons ──────────────────────────────────────
+// Use a specific selector so timeline/daychart buttons (which also carry the
+// wave-range-btn class for shared styling) don't accidentally trigger this handler.
+const WAVES_BTN_SEL = '.wave-range-btn:not(.timeline-range-btn):not(.daychart-range-btn)';
+
 function attachRangeButtons(canvas) {
-  document.querySelectorAll('.wave-range-btn').forEach(btn => {
+  document.querySelectorAll(WAVES_BTN_SEL).forEach(btn => {
     btn.addEventListener('click', () => {
       totalDays = parseInt(btn.dataset.days, 10);
-      document.querySelectorAll('.wave-range-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll(WAVES_BTN_SEL).forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       if (currentState) dims = draw(canvas, currentState);
     });

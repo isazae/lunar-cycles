@@ -40,6 +40,9 @@ export function moonDeclinationAmplitude(date) {
   return 18.5 + (28.5 - 18.5) * (1 + Math.cos(f * 2 * Math.PI)) / 2;
 }
 
+// ── Display helpers ────────────────────────────────────────────
+export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 // ── Standard-time midnight helpers ────────────────────────────
 // The day charts always use the local timezone's STANDARD (non-DST) offset.
 // Math.max picks the larger (positive = west) offset, which is always the

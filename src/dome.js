@@ -89,10 +89,10 @@ let renderer = null;
 let scene    = null;
 let camera   = null;
 let animId   = null;
-let spherical  = { theta: 0.3, phi: 1.1, radius: 2.8 };
+let spherical  = { theta: 0.3, phi: 1.1, radius: 4.5 };
 let isDragging = false;
 let prevMouse  = { x: 0, y: 0 };
-let isRotating = true;   // auto-rotation on/off
+let isRotating = false;  // auto-rotation on/off — starts paused
 let insideView = false;  // inside (first-person) vs outside (orbital) perspective
 
 // Cycle animation state
@@ -341,7 +341,7 @@ function attachControls(container) {
       spherical = { theta: 0.3, phi: 0.8, radius: spherical.radius };
       camera.fov = 75; camera.updateProjectionMatrix();
     } else {
-      spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+      spherical = { theta: 0.3, phi: 1.1, radius: 4.5 };
     }
     updateCamera();
   });
@@ -368,7 +368,7 @@ function attachControls(container) {
     } else {
       if (btn)  { btn.textContent = '⌂ Inside'; btn.title = 'View from inside dome'; }
       if (hint) hint.textContent = 'Click and drag to rotate · Scroll to zoom';
-      spherical = { theta: 0.3, phi: 1.1, radius: 2.8 };
+      spherical = { theta: 0.3, phi: 1.1, radius: 4.5 };
       camera.fov = 50;
       camera.updateProjectionMatrix();
     }
@@ -451,6 +451,10 @@ export function initDome() {
   attachControls(container);
   updateCamera();
 
+  // Sync pause button label with the paused-by-default state
+  const pauseBtn = document.getElementById('dome-pause');
+  if (pauseBtn) { pauseBtn.textContent = '▶'; pauseBtn.title = 'Resume rotation'; }
+
   // Animation loop — guard against scene being null on first frames
   function animate(timestamp) {
     animId = requestAnimationFrame(animate);
@@ -505,4 +509,40 @@ export function renderDome(state) {
 
   // Always rebuild arcs for new date/location
   buildDynamicScene(state);
+
+  // Update tropical month legend to show transit altitudes at this latitude
+  const tropicalLabel = document.getElementById('dome-tropical-label');
+  if (tropicalLabel) {
+    const lat_rad = toRad(state.lat);
+    const tropAmp = moonDeclinationAmplitude(state.date);
+    const tropAlts = [tropAmp, -tropAmp]
+      .map(dec => toDeg(altitude(dec, 0, lat_rad)))
+      .filter(a => a > 0.5);
+    if (tropAlts.length >= 2) {
+      const lo = Math.round(Math.min(...tropAlts));
+      const hi = Math.round(Math.max(...tropAlts));
+      tropicalLabel.textContent = `Current tropical month · transit ${lo}°–${hi}° at this latitude`;
+    } else if (tropAlts.length === 1) {
+      const val = Math.round(tropAlts[0]);
+      tropicalLabel.textContent = `Current tropical month · transit up to ${val}° at this latitude`;
+    } else {
+      tropicalLabel.textContent = `Current tropical month range`;
+    }
+  }
+
+  // Update standstill legend to show transit altitudes at this latitude
+  const standstillLabel = document.getElementById('dome-standstill-label');
+  if (standstillLabel) {
+    const lat_rad = toRad(state.lat);
+    const alts = [MAJOR_STANDSTILL, MINOR_STANDSTILL, -MINOR_STANDSTILL, -MAJOR_STANDSTILL]
+      .map(dec => toDeg(altitude(dec, 0, lat_rad)))
+      .filter(a => a > 0.5);
+    if (alts.length >= 2) {
+      const lo = Math.round(Math.min(...alts));
+      const hi = Math.round(Math.max(...alts));
+      standstillLabel.textContent = `Standstill band · transit ${lo}°–${hi}° at this latitude`;
+    } else {
+      standstillLabel.textContent = `Standstill range (±18.5° to ±28.5°)`;
+    }
+  }
 }

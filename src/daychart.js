@@ -1,12 +1,15 @@
 // src/daychart.js — Sun & Moon Rise/Set chart
 
 import SunCalc from 'suncalc';
-import { MS_PER_DAY, STD_OFFSET_MS, stdMidnight } from './astronomy.js';
+import { MS_PER_DAY, STD_OFFSET_MS, stdMidnight, MONTHS } from './astronomy.js';
 
 let totalDays = 91;   // current span — updated by range buttons
 
+// MIN_DAYS must match the smallest range button's data-days value.
+// resize() uses it to set the base column width; wider ranges scroll horizontally.
+const MIN_DAYS = 91;
+
 const MARGIN = { top: 44, right: 16, bottom: 52, left: 52 };
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DPR    = window.devicePixelRatio || 1;
 
 let currentState = null;
@@ -120,10 +123,10 @@ function resize(canvas) {
   const containerW = container.clientWidth - 32; // subtract padding
   const h          = Math.min(520, Math.max(320, containerW * 0.56));
 
-  // Base column width is set by the 91-day layout.
+  // Base column width is set by the MIN_DAYS layout.
   // For wider ranges the canvas expands beyond the container (horizontal scroll).
   const basePlotW = containerW - MARGIN.left - MARGIN.right;
-  const baseColW  = basePlotW / 91;
+  const baseColW  = basePlotW / MIN_DAYS;
   const plotW     = Math.max(basePlotW, totalDays * baseColW);
   const w         = plotW + MARGIN.left + MARGIN.right;
 
