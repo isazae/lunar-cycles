@@ -1,41 +1,30 @@
 // src/waves.js — Overlapping sine wave visualization
 
 import SunCalc from 'suncalc';
-
-const MS_PER_DAY = 86400000;
-const SYNODIC    = 29.53059;
-const TROPICAL   = 27.3216;
-const NODAL_DAYS = 18.613 * 365.25;
-
-// Nodal reference only (synodic & tropical now use SunCalc directly)
-const MAJOR_STANDSTILL = new Date(Date.UTC(2025, 0, 15));
-
-// ── Get moon declination via north-pole trick (same as bars.js) ──
-// At lat=90°N, sin(altitude) = sin(declination), so altitude = declination.
-function getMoonDeclinationDeg(date) {
-  const pos = SunCalc.getMoonPosition(date, 90, 0);
-  return pos.altitude * (180 / Math.PI);
-}
+import {
+  MS_PER_DAY, SYNODIC, TROPICAL, NODAL_DAYS, MAJOR_STANDSTILL,
+  getMoonDeclinationDeg, moonDeclinationAmplitude,
+} from './astronomy.js';
 
 const MARGIN = { top: 36, right: 20, bottom: 48, left: 20 };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const DPR = window.devicePixelRatio || 1;
+const DPR    = window.devicePixelRatio || 1;
 
-let totalDays = 90;   // current range (90 / 180 / 365)
+let totalDays    = 91;  // matches the active range button default
 let currentState = null;
-let dims = null;
+let dims         = null;
 
 // ── Build wave descriptors for the current state ──────────────
 function buildWaves(state) {
-  // Synodic: use suncalc phase directly so the sine is anchored correctly.
+  // Synodic: use SunCalc phase directly so the sine is anchored correctly.
   // SunCalc.phase goes 0→1 (new→full→new). We convert to a -1→+1 sine:
   //   new moon  = 0   → sin = -1 (trough)
   //   full moon = 0.5 → sin = +1 (peak)
   // That means phase 0 corresponds to angle π (sin(π) = 0 going negative).
   // So: sin_value = sin(phase * 2π - π/2) ... or more simply:
   //   synodicOffset = days into cycle = phase * SYNODIC
-  const synodicPhase   = SunCalc.getMoonIllumination(state.date).phase;
-  const synodicOffset  = synodicPhase * SYNODIC; // days past last new moon
+  const synodicPhase  = SunCalc.getMoonIllumination(state.date).phase;
+  const synodicOffset = synodicPhase * SYNODIC; // days past last new moon
 
   // Tropical: derive offset from real SunCalc declination.
   // The declination follows a cosine curve: dec(t) = maxDec * cos(2π * t / TROPICAL)
@@ -43,14 +32,11 @@ function buildWaves(state) {
   //   t = (TROPICAL / 2π) * acos(dec / maxDec)
   // We also need to determine if moon is in the first or second half of the cycle
   // (heading south vs heading north) to resolve the acos ambiguity.
-  const decNow   = getMoonDeclinationDeg(state.date);
-  const decNext  = getMoonDeclinationDeg(new Date(state.date.getTime() + MS_PER_DAY));
+  const decNow      = getMoonDeclinationDeg(state.date);
+  const decNext     = getMoonDeclinationDeg(new Date(state.date.getTime() + MS_PER_DAY));
   const movingSouth = decNext < decNow;
 
-  // Current max declination amplitude from nodal cycle
-  const daysSinceMajor = (state.date - MAJOR_STANDSTILL) / MS_PER_DAY;
-  const nodalFraction  = ((daysSinceMajor % NODAL_DAYS) + NODAL_DAYS) % NODAL_DAYS / NODAL_DAYS;
-  const maxDec         = 18.5 + (28.5 - 18.5) * Math.abs(Math.cos(nodalFraction * 2 * Math.PI));
+  const maxDec = moonDeclinationAmplitude(state.date);
 
   // Clamp and derive position within tropical cycle.
   // The wave uses sin(offset/T * 2π). We want sin = dec/maxDec at today.
@@ -67,7 +53,8 @@ function buildWaves(state) {
     : TROPICAL * 1.25 - halfCyclePos;
 
   // Nodal: offset so sin=+1 at the major standstill peak
-  const nodalOffset = daysSinceMajor + NODAL_DAYS * 0.25;
+  const daysSinceMajor = (state.date - MAJOR_STANDSTILL) / MS_PER_DAY;
+  const nodalOffset    = daysSinceMajor + NODAL_DAYS * 0.25;
 
   return [
     {
@@ -112,8 +99,8 @@ function resize(canvas) {
   const h = Math.min(420, Math.max(280, w * 0.42));
   canvas.style.width  = w + 'px';
   canvas.style.height = h + 'px';
-  canvas.width  = w * DPR;
-  canvas.height = h * DPR;
+  canvas.width  = Math.round(w * DPR);
+  canvas.height = Math.round(h * DPR);
   const ctx = canvas.getContext('2d');
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   return { w, h };
@@ -121,9 +108,9 @@ function resize(canvas) {
 
 // ── Main draw function ────────────────────────────────────────
 function draw(canvas, state) {
-  const ctx    = canvas.getContext('2d');
+  const ctx   = canvas.getContext('2d');
   const { w, h } = resize(canvas);
-  const waves  = buildWaves(state);
+  const waves = buildWaves(state);
 
   const plotW  = w - MARGIN.left - MARGIN.right;
   const plotH  = h - MARGIN.top  - MARGIN.bottom;
@@ -158,12 +145,11 @@ function draw(canvas, state) {
   ctx.setLineDash([]);
 
   // ── X-axis date labels ──
-  const startDate = new Date(state.date.getTime() - (totalDays / 2) * MS_PER_DAY);
-  const tickInterval = totalDays <= 90 ? 7 : totalDays <= 180 ? 14 : 30;
+  const startDate    = new Date(state.date.getTime() - (totalDays / 2) * MS_PER_DAY);
+  const tickInterval = totalDays <= 91 ? 7 : totalDays <= 181 ? 14 : 30;
 
-  ctx.fillStyle  = '#2a3050';
-  ctx.font       = `${11 * DPR / DPR}px "JetBrains Mono"`;
-  ctx.textAlign  = 'center';
+  ctx.font      = '11px "JetBrains Mono"';
+  ctx.textAlign = 'center';
 
   for (let d = 0; d <= totalDays; d += tickInterval) {
     const date  = new Date(startDate.getTime() + d * MS_PER_DAY);
@@ -191,9 +177,9 @@ function draw(canvas, state) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.fillStyle  = 'rgba(255,255,255,0.3)';
-  ctx.font       = `${12 * DPR / DPR}px "Cormorant Garamond"`;
-  ctx.textAlign  = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font      = '12px "Cormorant Garamond"';
+  ctx.textAlign = 'center';
   ctx.fillText('Today', todayX, MARGIN.top - 12);
 
   // ── Draw each wave ──
@@ -222,7 +208,7 @@ function draw(canvas, state) {
 
     // Peak / trough labels (synodic & tropical only)
     if (wi < 2) {
-      ctx.font = `${10 * DPR / DPR}px "JetBrains Mono"`;
+      ctx.font = '10px "JetBrains Mono"';
       for (let d = 0; d <= totalDays; d += 0.5) {
         const v  = sineValue(d, wave);
         const vN = sineValue(d + 0.5, wave);
@@ -326,8 +312,7 @@ function attachRangeButtons(canvas) {
 // ── Public render function called by main.js ──────────────────
 export function renderWaves(state) {
   currentState = state;
-  const canvas  = document.getElementById('waves-canvas');
-  const tooltip = document.getElementById('waves-tooltip');
+  const canvas = document.getElementById('waves-canvas');
   if (!canvas) return;
   dims = draw(canvas, state);
 }

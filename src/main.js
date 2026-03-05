@@ -5,6 +5,7 @@ import { renderBars } from './bars.js';
 import { renderWaves, initWaves } from './waves.js';
 import { renderDome, initDome } from './dome.js';
 import { renderDayChart, initDayChart } from './daychart.js';
+import { renderTimeline, initTimeline } from './timeline.js';
 
 // ── App state ─────────────────────────────────────────────────
 // This object is the single source of truth for the whole app.
@@ -38,6 +39,7 @@ locationInput.value = state.locationName;
 // Called whenever date or location changes.
 function onStateChange() {
   renderBars(state);
+  renderTimeline(state);
   renderDayChart(state);
   renderWaves(state);
   renderDome(state);
@@ -63,6 +65,7 @@ locationInput.addEventListener('change', async () => {
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
     const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    if (!res.ok) throw new Error(res.status);
     const data = await res.json();
 
     if (!data.length) {
@@ -112,6 +115,7 @@ gpsBtn.addEventListener('click', () => {
 initWaves();
 initDome();
 initDayChart();
+initTimeline();
 requestAnimationFrame(() => onStateChange());
 
 // ── Service Worker registration (PWA offline support) ─────────

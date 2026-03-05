@@ -243,10 +243,6 @@ main {
   background: rgba(255 255 255 / 0.07);
 }
 
-.bar-glow {
-  display: none; /* removed — pulsing glow reads as interactive/draggable */
-}
-
 .bar-marker {
   position: absolute;
   top: 50%;
@@ -312,6 +308,18 @@ main {
 .nodal .bar-fill         { background: linear-gradient(90deg, rgba(184 130 200 / 0.3), rgba(184 130 200 / 0.5)); }
 .nodal .bar-marker       { background: var(--purple); color: var(--purple); }
 .nodal .bar-marker-label { color: var(--purple); }
+
+/* ── 48-hour timeline strip ─────────────────────────────────── */
+.timeline-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+#timeline-canvas {
+  display: block;
+  width: 100%;
+}
 
 /* ── Day chart ─────────────────────────────────────────────── */
 .daychart-container {

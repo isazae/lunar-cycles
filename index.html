@@ -62,7 +62,6 @@
               <span class="cycle-name">Synodic Month</span>
               <span class="cycle-period">29.53 days · phase</span>
             </div>
-            <div class="cycle-desc">New Moon → Full Moon → New Moon</div>
             <div class="bar-container" id="bar-synodic"></div>
             <div class="bar-end-labels">
               <span>🌑 New</span>
@@ -76,12 +75,11 @@
               <span class="cycle-name">Tropical Month</span>
               <span class="cycle-period">27.32 days · declination</span>
             </div>
-            <div class="cycle-desc">Max North → Max South → Max North</div>
             <div class="bar-container" id="bar-tropical"></div>
             <div class="bar-end-labels">
-              <span>▲ Max North</span>
               <span>▼ Max South</span>
               <span>▲ Max North</span>
+              <span>▼ Max South</span>
             </div>
           </div>
 
@@ -90,12 +88,11 @@
               <span class="cycle-name">Nodal Cycle</span>
               <span class="cycle-period">18.61 years · standstill amplitude</span>
             </div>
-            <div class="cycle-desc">Major Standstill → Minor Standstill → Major Standstill</div>
             <div class="bar-container" id="bar-nodal"></div>
             <div class="bar-end-labels">
-              <span>⬥ Major ±28.5°</span>
               <span>⬦ Minor ±18.5°</span>
               <span>⬥ Major ±28.5°</span>
+              <span>⬦ Minor ±18.5°</span>
             </div>
           </div>
 
@@ -140,6 +137,11 @@
       <!-- ── Sun & Moon Rise/Set Chart ── -->
       <section class="viz-section">
         <h2 class="viz-title">Sun &amp; Moon — Day by Day</h2>
+
+        <!-- 48-hour timeline strip — centred on tonight's midnight -->
+        <div class="timeline-container">
+          <canvas id="timeline-canvas"></canvas>
+        </div>
 
         <div class="daychart-container">
           <canvas id="daychart-canvas"></canvas>

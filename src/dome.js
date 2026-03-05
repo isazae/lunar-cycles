@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import SunCalc from 'suncalc';
+import { MS_PER_DAY, getMoonDeclinationDeg, moonDeclinationAmplitude } from './astronomy.js';
 
 // ── Constants ─────────────────────────────────────────────────
 const DOME_RADIUS        = 1.8;
@@ -54,27 +55,7 @@ function lunarArcPoints(dec_deg, lat_rad, radius, numPoints = 300) {
   return points;
 }
 
-/** Get today's moon declination via the north-pole trick.
- *  At lat=90°N the altitude equation simplifies to: sin(alt) = sin(dec),
- *  so altitude = declination exactly, regardless of time or hour angle.
- *  This is the same method used in bars.js and waves.js. */
-function getMoonDeclination(date) {
-  const pos = SunCalc.getMoonPosition(date, 90, 0);
-  return toDeg(pos.altitude);
-}
-
-/** Current tropical month amplitude — how far the Moon swings this cycle.
- *  Near major standstill (Jan 2025) it's ~27–28°; decreases toward 2034. */
-function currentTropicalAmplitude(date) {
-  const NODAL_DAYS      = 18.613 * 365.25;
-  const MAJOR_DATE      = new Date(Date.UTC(2025, 0, 15));
-  const daysSinceMajor  = (date - MAJOR_DATE) / 86400000;
-  const cyclePos        = ((daysSinceMajor % NODAL_DAYS) + NODAL_DAYS) % NODAL_DAYS / NODAL_DAYS;
-  // Cosine oscillates from max (28.5°) at 0% to min (18.5°) at 50%
-  const amplitude = MINOR_STANDSTILL + (MAJOR_STANDSTILL - MINOR_STANDSTILL) *
-                    (1 + Math.cos(cyclePos * 2 * Math.PI)) / 2;
-  return amplitude;
-}
+// getMoonDeclinationDeg() and moonDeclinationAmplitude() imported from astronomy.js
 
 // ── Text sprite helper ────────────────────────────────────────
 function makeTextSprite(text, color, fontSize = 42) {
@@ -116,7 +97,7 @@ let insideView = false;  // inside (first-person) vs outside (orbital) perspecti
 
 // Cycle animation state
 let cycleAnimating  = false;  // is the cycle animation playing?
-let cycleAnimState  = null;   // { baseDate, simDate, daysPerSecond, lastFrameTime, savedState }
+let cycleAnimState  = null;   // { savedState, simDate, daysPerSecond, lastFrameTime }
 
 // Groups that get rebuilt on state change
 let dynamicGroup = null;
@@ -197,8 +178,8 @@ function buildDynamicScene(state) {
   dynamicGroup = new THREE.Group();
 
   const lat_rad = toRad(state.lat);
-  const tropAmp = currentTropicalAmplitude(state.date);
-  const tonightDec = getMoonDeclination(state.date);
+  const tropAmp = moonDeclinationAmplitude(state.date);
+  const tonightDec = getMoonDeclinationDeg(state.date);
 
   // ── Purple standstill band ──
   for (let dec = MINOR_STANDSTILL; dec <= MAJOR_STANDSTILL; dec += 0.8) {
@@ -484,7 +465,7 @@ export function initDome() {
       cycleAnimState.lastFrameTime = now;
 
       // Advance simulated date
-      const msAdvance = elapsed * cycleAnimState.daysPerSecond * 86400000;
+      const msAdvance = elapsed * cycleAnimState.daysPerSecond * MS_PER_DAY;
       cycleAnimState.simDate = new Date(cycleAnimState.simDate.getTime() + msAdvance);
 
       // Update date readout

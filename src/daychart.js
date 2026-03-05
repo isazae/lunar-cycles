@@ -1,8 +1,7 @@
 // src/daychart.js — Sun & Moon Rise/Set chart
 
 import SunCalc from 'suncalc';
-
-const MS_PER_DAY = 86400000;
+import { MS_PER_DAY, STD_OFFSET_MS, stdMidnight } from './astronomy.js';
 
 let totalDays = 91;   // current span — updated by range buttons
 
@@ -11,25 +10,6 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const DPR    = window.devicePixelRatio || 1;
 
 let currentState = null;
-
-// ── Standard-time reference ────────────────────────────────────
-// The graph Y-axis always uses the local timezone's STANDARD (non-DST) offset.
-// This keeps every column exactly 24 h wide and produces smooth, continuous
-// sunrise/sunset curves with no jump at the DST transition.
-// Tooltip times are shown in wall-clock time (DST-adjusted) with the tz abbreviation.
-//
-// Math.max picks the larger offset (positive = west), which is always the
-// standard offset, because DST reduces the offset by 1 h (e.g. EST=300, EDT=240).
-const STD_OFFSET_MIN = Math.max(
-  new Date(2000, 0, 1).getTimezoneOffset(),  // January  — standard in Northern Hemisphere
-  new Date(2000, 6, 1).getTimezoneOffset()   // July     — standard in Southern Hemisphere
-);
-const STD_OFFSET_MS = STD_OFFSET_MIN * 60000;
-
-// Standard-time midnight (00:00 std) for a local calendar date given as components.
-function stdMidnight(y, m, d) {
-  return new Date(Date.UTC(y, m, d) + STD_OFFSET_MS);
-}
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -41,20 +21,8 @@ function dayFrac(date) {
   return (date - stdMidnight(y, m, d)) / MS_PER_DAY;
 }
 
-// Find the moon rise and set times that genuinely fall within a local calendar day.
-//
-// SunCalc.getMoonTimes always starts its 24 h search from UTC midnight (when inUTC
-// is false, the default).  For western timezones like EST (UTC−5) this means the
-// search window is 00:00–24:00 UTC, while the local standard-time day spans
-// 05:00 UTC → 05:00 UTC next day.  Events in the last few hours of the local day
-// (e.g. a moonset at 11:59 PM EST = 04:59 UTC the next morning) lie outside the
-// UTC-midnight window and would be silently missed.
-//
-// Fix: run SunCalc for the two UTC dates whose 24 h windows together cover the
-// full local day, then filter every result through inDay so only events genuinely
-// within [dayStart, dayStart + 24 h] are kept.
 // Internal helper: run SunCalc for the two UTC dates that straddle a standard-time
-// midnight, returning up to four raw result objects.
+// midnight, returning up to two raw result objects.
 function _sunCalcAroundMidnight(dayStart, lat, lon) {
   const d0 = new Date(Date.UTC(
     dayStart.getUTCFullYear(), dayStart.getUTCMonth(), dayStart.getUTCDate()
