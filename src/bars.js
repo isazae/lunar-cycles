@@ -111,8 +111,11 @@ export function renderBars(state) {
   // ── Synodic: phase name above the marker ──
   buildBar('bar-synodic', p.synodic, phaseName(p.synodic));
 
-  // ── Tropical: % through cycle above; local transit altitudes below ──
-  buildBar('bar-tropical', p.tropical, `${Math.round(p.tropical * 100)}% of cycle`);
+  // ── Tropical: transit altitude of today's moon above; local transit altitudes below ──
+  const decNow = getMoonDeclinationDeg(state.date);
+  const todayTransitAlt = transitAlt(decNow, state.lat);
+  const tropLabel = todayTransitAlt > 0.5 ? `${Math.round(todayTransitAlt)}°` : 'below horizon';
+  buildBar('bar-tropical', p.tropical, tropLabel);
 
   const tropAmp     = moonDeclinationAmplitude(state.date);
   const tropSouthAlt = transitAlt(-tropAmp, state.lat);

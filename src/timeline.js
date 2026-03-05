@@ -337,6 +337,9 @@ export function initTimeline() {
     const sunDeg  = Math.round(sunAlt  * 180 / Math.PI);
     const moonDeg = Math.round(moonAlt * 180 / Math.PI);
 
+    // Express as degrees above the local horizon; negative = body is below horizon
+    const fmtAlt = deg => deg > 0 ? `${deg}° above horizon` : 'below horizon';
+
     const hh = t.getHours().toString().padStart(2, '0');
     const mm = t.getMinutes().toString().padStart(2, '0');
     const timeLabel = `${MONTHS[t.getMonth()]} ${t.getDate()} ${hh}:${mm}`;
@@ -345,7 +348,7 @@ export function initTimeline() {
     hoverLine.style.left    = `${mouseX}px`;
     hoverTip.style.display  = 'block';
     hoverTip.style.top      = `${STRIP_TOP + STRIP_H / 2}px`;
-    hoverTip.innerHTML      = `${timeLabel}<br>☀ ${sunDeg}°<br>☽ ${moonDeg}°`;
+    hoverTip.innerHTML      = `${timeLabel}<br>☀ ${fmtAlt(sunDeg)}<br>☽ ${fmtAlt(moonDeg)}`;
 
     const TIP_GAP = 10;
     if (mouseX < rect.width - 90) {

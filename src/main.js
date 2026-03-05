@@ -107,6 +107,16 @@ gpsBtn.addEventListener('click', () => {
   );
 });
 
+// ── Cycle info panel toggles ──────────────────────────────────
+// Each ⓘ button opens/closes the explanatory panel for its cycle.
+document.querySelectorAll('.cycle-info-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const panel = btn.closest('.cycle').querySelector('.cycle-info-panel');
+    const isOpen = panel.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+  });
+});
+
 // ── Initial render ────────────────────────────────────────────
 // initWaves/initDome wire up events immediately, but we defer the
 // first render until after the browser has laid out the page so
