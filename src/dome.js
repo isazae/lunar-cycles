@@ -510,10 +510,24 @@ export function renderDome(state) {
   // Always rebuild arcs for new date/location
   buildDynamicScene(state);
 
+  // Shared for all three label updates below
+  const lat_rad = toRad(state.lat);
+
+  // Update tonight's path legend with tonight's transit altitude
+  const tonightLabel = document.getElementById('dome-tonight-label');
+  if (tonightLabel) {
+    const tonightDec    = getMoonDeclinationDeg(state.date);
+    const transitAltDeg = toDeg(altitude(tonightDec, 0, lat_rad));
+    if (transitAltDeg > 0.5) {
+      tonightLabel.textContent = `Tonight's lunar path · transit ${Math.round(transitAltDeg)}° at this latitude`;
+    } else {
+      tonightLabel.textContent = `Tonight's lunar path (below horizon at transit)`;
+    }
+  }
+
   // Update tropical month legend to show transit altitudes at this latitude
   const tropicalLabel = document.getElementById('dome-tropical-label');
   if (tropicalLabel) {
-    const lat_rad = toRad(state.lat);
     const tropAmp = moonDeclinationAmplitude(state.date);
     const tropAlts = [tropAmp, -tropAmp]
       .map(dec => toDeg(altitude(dec, 0, lat_rad)))
@@ -533,7 +547,6 @@ export function renderDome(state) {
   // Update standstill legend to show transit altitudes at this latitude
   const standstillLabel = document.getElementById('dome-standstill-label');
   if (standstillLabel) {
-    const lat_rad = toRad(state.lat);
     const alts = [MAJOR_STANDSTILL, MINOR_STANDSTILL, -MINOR_STANDSTILL, -MAJOR_STANDSTILL]
       .map(dec => toDeg(altitude(dec, 0, lat_rad)))
       .filter(a => a > 0.5);

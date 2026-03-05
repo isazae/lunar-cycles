@@ -47,6 +47,14 @@ function phaseName(p) {
   return 'Waning Crescent';
 }
 
+// ── Transit altitude at culmination (ha = 0) ──────────────────
+// Returns degrees; negative means below horizon at transit.
+function transitAlt(decDeg, latDeg) {
+  const dec = decDeg * Math.PI / 180;
+  const lat = latDeg * Math.PI / 180;
+  return Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec)) * 180 / Math.PI;
+}
+
 // ── Build one bar row ──────────────────────────────────────────
 // Brief delay lets the browser complete layout before the CSS transition fires.
 const ANIM_DELAY_MS = 60;
@@ -100,13 +108,38 @@ function buildBar(containerId, progress, label) {
 export function renderBars(state) {
   const p = calcProgress(state.date);
 
+  // ── Synodic: phase name above the marker ──
   buildBar('bar-synodic', p.synodic, phaseName(p.synodic));
 
-  const decNow    = getMoonDeclinationDeg(state.date);
-  const decDir    = p.tropical < 0.5 ? '↑ N' : '↓ S';
-  const tropLabel = `${decNow >= 0 ? '+' : ''}${decNow.toFixed(1)}° ${decDir}`;
-  buildBar('bar-tropical', p.tropical, tropLabel);
+  // ── Tropical: % through cycle above; local transit altitudes below ──
+  buildBar('bar-tropical', p.tropical, `${Math.round(p.tropical * 100)}% of cycle`);
 
-  const nodalPct = (p.nodal * 100).toFixed(0);
-  buildBar('bar-nodal', p.nodal, `${nodalPct}% of cycle`);
+  const tropAmp     = moonDeclinationAmplitude(state.date);
+  const tropSouthAlt = transitAlt(-tropAmp, state.lat);
+  const tropNorthAlt = transitAlt( tropAmp, state.lat);
+  const tropEndLabels = document.getElementById('bar-tropical')?.nextElementSibling;
+  if (tropEndLabels) {
+    const southStr = tropSouthAlt > 0.5
+      ? `▼ S transit ${Math.round(tropSouthAlt)}°`
+      : '▼ below horizon';
+    const northStr = tropNorthAlt > 0.5
+      ? `▲ N transit ${Math.round(tropNorthAlt)}°`
+      : '▲ below horizon';
+    tropEndLabels.children[0].textContent = southStr;
+    tropEndLabels.children[1].textContent = northStr;
+    tropEndLabels.children[2].textContent = southStr;
+  }
+
+  // ── Nodal: % through cycle above; local transit range at each standstill below ──
+  buildBar('bar-nodal', p.nodal, `${Math.round(p.nodal * 100)}% of cycle`);
+
+  const nodalEndLabels = document.getElementById('bar-nodal')?.nextElementSibling;
+  if (nodalEndLabels) {
+    const lo = alt => Math.max(0, Math.round(alt));
+    const minorStr = `⬦ Minor ${lo(transitAlt(-18.5, state.lat))}°–${lo(transitAlt(18.5, state.lat))}°`;
+    const majorStr = `⬥ Major ${lo(transitAlt(-28.5, state.lat))}°–${lo(transitAlt(28.5, state.lat))}°`;
+    nodalEndLabels.children[0].textContent = minorStr;
+    nodalEndLabels.children[1].textContent = majorStr;
+    nodalEndLabels.children[2].textContent = minorStr;
+  }
 }
