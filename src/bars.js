@@ -3,6 +3,7 @@
 import SunCalc from 'suncalc';
 import {
   MS_PER_DAY, TROPICAL, NODAL_DAYS, MAJOR_STANDSTILL,
+  MAJOR_STANDSTILL_DEG, MINOR_STANDSTILL_DEG,
   getMoonDeclinationDeg, moonDeclinationAmplitude,
 } from './astronomy.js';
 
@@ -19,7 +20,11 @@ function calcProgress(date) {
   const movingSouth = decTomorrow < decNow;
 
   const maxDec       = moonDeclinationAmplitude(date);
-  const clampedDec   = Math.max(-maxDec, Math.min(maxDec, decNow));
+  let clampedDec = decNow;
+  if (Math.abs(decNow) > maxDec) {
+    console.warn(`[bars] Moon declination ${decNow.toFixed(2)}° exceeds expected amplitude ±${maxDec.toFixed(2)}° — clamping`);
+    clampedDec = Math.max(-maxDec, Math.min(maxDec, decNow));
+  }
   const halfCyclePos = (TROPICAL / (2 * Math.PI)) * Math.acos(clampedDec / maxDec); // 0..TROPICAL/2
   const tropicalRaw  = movingSouth ? halfCyclePos / TROPICAL : 1 - halfCyclePos / TROPICAL;
   // tropicalRaw: 0 = maxNorth, 0.5 = maxSouth — shift +0.5 so maxNorth lands at centre
@@ -56,12 +61,18 @@ function transitAlt(decDeg, latDeg) {
 }
 
 // ── Build one bar row ──────────────────────────────────────────
-// Brief delay lets the browser complete layout before the CSS transition fires.
+// Uses the same grid layout as the moon grade sub-score bars.
 const ANIM_DELAY_MS = 60;
 
 function buildBar(containerId, progress, label) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
+
+  // Value label on top
+  const value = document.createElement('span');
+  value.className = 'bar-value';
+  value.textContent = label;
+  container.appendChild(value);
 
   // Track + fill
   const track = document.createElement('div');
@@ -72,34 +83,10 @@ function buildBar(containerId, progress, label) {
   track.appendChild(fill);
   container.appendChild(track);
 
-  // Tick marks at 25%, 50%, 75%
-  [25, 50, 75].forEach(pct => {
-    const tick = document.createElement('div');
-    tick.className = 'bar-tick';
-    tick.style.left = pct + '%';
-    container.appendChild(tick);
-  });
-
-  // Marker dot
-  const marker = document.createElement('div');
-  marker.className = 'bar-marker';
-  marker.style.left = '0%';
-  container.appendChild(marker);
-
-  // Floating label above the marker
-  const markerLabel = document.createElement('div');
-  markerLabel.className = 'bar-marker-label';
-  markerLabel.style.left = '0%';
-  markerLabel.textContent = label;
-  container.appendChild(markerLabel);
-
   // Animate into position after initial paint
   requestAnimationFrame(() => {
     setTimeout(() => {
-      const pos = (progress * 100).toFixed(2) + '%';
-      fill.style.width       = pos;
-      marker.style.left      = pos;
-      markerLabel.style.left = pos;
+      fill.style.width = (progress * 100).toFixed(2) + '%';
     }, ANIM_DELAY_MS);
   });
 }
@@ -139,8 +126,8 @@ export function renderBars(state) {
   const nodalEndLabels = document.getElementById('bar-nodal')?.nextElementSibling;
   if (nodalEndLabels) {
     const lo = alt => Math.max(0, Math.round(alt));
-    const minorStr = `⬦ Minor ${lo(transitAlt(-18.5, state.lat))}°–${lo(transitAlt(18.5, state.lat))}°`;
-    const majorStr = `⬥ Major ${lo(transitAlt(-28.5, state.lat))}°–${lo(transitAlt(28.5, state.lat))}°`;
+    const minorStr = `⬦ Minor ${lo(transitAlt(-MINOR_STANDSTILL_DEG, state.lat))}°–${lo(transitAlt(MINOR_STANDSTILL_DEG, state.lat))}°`;
+    const majorStr = `⬥ Major ${lo(transitAlt(-MAJOR_STANDSTILL_DEG, state.lat))}°–${lo(transitAlt(MAJOR_STANDSTILL_DEG, state.lat))}°`;
     nodalEndLabels.children[0].textContent = minorStr;
     nodalEndLabels.children[1].textContent = majorStr;
     nodalEndLabels.children[2].textContent = minorStr;

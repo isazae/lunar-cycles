@@ -109,6 +109,8 @@
           </div>
 
         </div>
+
+        </div>
       </section>
 
       <!-- ── Overlapping Waves ── -->
@@ -182,6 +184,61 @@
           <div class="wave-legend-item">
             <div class="wave-legend-band" style="background:linear-gradient(90deg, rgba(80,110,185,0.15), rgba(255,255,255,0.72))"></div>
             Moon above horizon (brightness = illumination)
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Moon Grade ── -->
+      <section class="viz-section">
+        <h2 class="viz-title">Tonight's Moon</h2>
+
+        <div class="moon-grade">
+          <div class="grade-summary">
+            <span class="grade-composite"><span id="grade-score">–</span><span class="grade-max"> / 100</span></span>
+          </div>
+          <div class="grade-bars">
+            <div class="grade-row" id="grade-illum">
+              <span class="grade-bar-label">Illumination</span>
+              <div class="grade-bar-track"><div class="grade-bar-fill"></div></div>
+              <span class="grade-bar-value">–</span>
+            </div>
+            <div class="grade-row" id="grade-duration">
+              <span class="grade-bar-label">Dark-sky time</span>
+              <div class="grade-bar-track"><div class="grade-bar-fill"></div></div>
+              <span class="grade-bar-value">–</span>
+            </div>
+            <div class="grade-row" id="grade-altitude">
+              <span class="grade-bar-label">Peak altitude</span>
+              <div class="grade-bar-track"><div class="grade-bar-fill"></div></div>
+              <span class="grade-bar-value">–</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="chart-subtitle">Over Time</p>
+        <div class="gradechart-container">
+          <canvas id="gradechart-canvas"></canvas>
+          <div class="wave-tooltip" id="gradechart-tooltip"></div>
+        </div>
+
+        <div class="wave-controls">
+          <button class="gradechart-range-btn wave-range-btn active" data-days="91">91 Days</button>
+          <button class="gradechart-range-btn wave-range-btn" data-days="181">181 Days</button>
+          <button class="gradechart-range-btn wave-range-btn" data-days="365">1 Year</button>
+        </div>
+
+        <div class="wave-legend">
+          <div class="wave-legend-item">
+            <div class="wave-legend-band" style="background:rgba(240,216,144,0.55)"></div>
+            Illumination
+          </div>
+          <div class="wave-legend-item">
+            <div class="wave-legend-band" style="background:rgba(106,172,224,0.55)"></div>
+            Dark-sky time
+          </div>
+          <div class="wave-legend-item">
+            <div class="wave-legend-band" style="background:rgba(184,130,200,0.55)"></div>
+            Peak altitude
           </div>
         </div>
       </section>

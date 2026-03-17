@@ -14,6 +14,10 @@ export const NODAL_DAYS = 18.613 * 365.25;  // days  — major to major standsti
 // Nodal reference: major standstill peaked ~Jan 2025
 export const MAJOR_STANDSTILL = new Date(Date.UTC(2025, 0, 15));
 
+// Standstill declination extremes (degrees)
+export const MAJOR_STANDSTILL_DEG = 28.5;
+export const MINOR_STANDSTILL_DEG = 18.5;
+
 // ── Moon declination ───────────────────────────────────────────
 // At lat=90°N the altitude equation reduces to sin(alt) = sin(dec),
 // so altitude = declination exactly, at any time or hour angle.
@@ -37,24 +41,22 @@ export function getMoonDeclinationDeg(date) {
 export function moonDeclinationAmplitude(date) {
   const daysSinceMajor = (date - MAJOR_STANDSTILL) / MS_PER_DAY;
   const f = ((daysSinceMajor % NODAL_DAYS) + NODAL_DAYS) % NODAL_DAYS / NODAL_DAYS;
-  return 18.5 + (28.5 - 18.5) * (1 + Math.cos(f * 2 * Math.PI)) / 2;
+  return MINOR_STANDSTILL_DEG + (MAJOR_STANDSTILL_DEG - MINOR_STANDSTILL_DEG) * (1 + Math.cos(f * 2 * Math.PI)) / 2;
 }
 
 // ── Display helpers ────────────────────────────────────────────
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// ── Standard-time midnight helpers ────────────────────────────
-// The day charts always use the local timezone's STANDARD (non-DST) offset.
-// Math.max picks the larger (positive = west) offset, which is always the
-// standard offset because DST reduces it by 1 h (e.g. EST=300, EDT=240).
-// This keeps every calendar column exactly 24 h wide with no DST jump.
-const _STD_OFFSET_MIN = Math.max(
-  new Date(2000, 0, 1).getTimezoneOffset(),  // January — standard in N. Hemisphere
-  new Date(2000, 6, 1).getTimezoneOffset()   // July    — standard in S. Hemisphere
-);
-export const STD_OFFSET_MS = _STD_OFFSET_MIN * 60000;
+// ── Location-based midnight helpers ──────────────────────────
+// The day charts use the viewed location's timezone (derived from longitude)
+// so that midnight is always centred in the chart regardless of the browser's
+// local timezone.  Each 15° of longitude = 1 hour; offset is rounded to the
+// nearest whole hour for clean alignment.
+export function stdOffsetMs(lon) {
+  return Math.round(-lon / 15) * 3600000;
+}
 
-// Standard-time midnight (00:00 std) for a local calendar date given as y/m/d.
-export function stdMidnight(y, m, d) {
-  return new Date(Date.UTC(y, m, d) + STD_OFFSET_MS);
+// Standard-time midnight (00:00 local) for a calendar date at a given longitude.
+export function stdMidnight(y, m, d, lon) {
+  return new Date(Date.UTC(y, m, d) + stdOffsetMs(lon));
 }

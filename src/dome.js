@@ -2,16 +2,19 @@
 
 import * as THREE from 'three';
 import SunCalc from 'suncalc';
-import { MS_PER_DAY, getMoonDeclinationDeg, moonDeclinationAmplitude } from './astronomy.js';
+import { MS_PER_DAY, MAJOR_STANDSTILL_DEG, MINOR_STANDSTILL_DEG, getMoonDeclinationDeg, moonDeclinationAmplitude } from './astronomy.js';
 
 // ── Constants ─────────────────────────────────────────────────
-const DOME_RADIUS        = 1.8;
-const MAJOR_STANDSTILL   = 28.5;   // degrees declination
-const MINOR_STANDSTILL   = 18.5;
+const DOME_RADIUS = 1.8;
 
 // ── Astronomy helpers ─────────────────────────────────────────
 function toRad(deg) { return deg * Math.PI / 180; }
 function toDeg(rad) { return rad * 180 / Math.PI; }
+
+function debounce(fn, ms) {
+  let id;
+  return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
+}
 
 /** Altitude of an object at declination dec (deg) and hour angle ha (rad), from latitude lat (rad) */
 function altitude(dec_deg, ha_rad, lat_rad) {
@@ -28,6 +31,9 @@ function azimuth(dec_deg, ha_rad, lat_rad) {
   const alt = altitude(dec_deg, ha_rad, lat_rad);
   const cosAz = (Math.sin(dec) - Math.sin(lat_rad) * Math.sin(alt)) /
                 (Math.cos(lat_rad) * Math.cos(alt));
+  if (Math.abs(cosAz) > 1.001) {
+    console.warn(`[dome] cosAz out of range: ${cosAz.toFixed(4)} for dec=${dec_deg}° — clamping`);
+  }
   let az = Math.acos(Math.max(-1, Math.min(1, cosAz)));
   if (Math.sin(ha_rad) > 0) az = 2 * Math.PI - az;
   return az;
@@ -94,6 +100,7 @@ let isDragging = false;
 let prevMouse  = { x: 0, y: 0 };
 let isRotating = false;  // auto-rotation on/off — starts paused
 let insideView = false;  // inside (first-person) vs outside (orbital) perspective
+let lastPinchDist = 0;   // for pinch-to-zoom
 
 // Cycle animation state
 let cycleAnimating  = false;  // is the cycle animation playing?
@@ -182,21 +189,21 @@ function buildDynamicScene(state) {
   const tonightDec = getMoonDeclinationDeg(state.date);
 
   // ── Purple standstill band ──
-  for (let dec = MINOR_STANDSTILL; dec <= MAJOR_STANDSTILL; dec += 0.8) {
+  for (let dec = MINOR_STANDSTILL_DEG; dec <= MAJOR_STANDSTILL_DEG; dec += 0.8) {
     const a = createArc(dec,  lat_rad, 0xb882c8, 0.18);
     const b = createArc(-dec, lat_rad, 0xb882c8, 0.18);
     if (a) dynamicGroup.add(a);
     if (b) dynamicGroup.add(b);
   }
   // Inner faint fill
-  for (let dec = -MINOR_STANDSTILL; dec <= MINOR_STANDSTILL; dec += 1.5) {
+  for (let dec = -MINOR_STANDSTILL_DEG; dec <= MINOR_STANDSTILL_DEG; dec += 1.5) {
     const a = createArc(dec, lat_rad, 0xb882c8, 0.06);
     if (a) dynamicGroup.add(a);
   }
   // Boundary arcs (brighter)
   [
-    [MAJOR_STANDSTILL,  0.6], [-MAJOR_STANDSTILL, 0.6],
-    [MINOR_STANDSTILL,  0.4], [-MINOR_STANDSTILL, 0.4],
+    [MAJOR_STANDSTILL_DEG,  0.6], [-MAJOR_STANDSTILL_DEG, 0.6],
+    [MINOR_STANDSTILL_DEG,  0.4], [-MINOR_STANDSTILL_DEG, 0.4],
   ].forEach(([dec, op]) => {
     const a = createArc(dec, lat_rad, 0xb882c8, op);
     if (a) dynamicGroup.add(a);
@@ -308,24 +315,51 @@ function attachControls(container) {
     }
   }, { passive: false });
 
-  // Touch
+  // Touch — single-finger drag to rotate, two-finger pinch to zoom
   container.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) { isDragging = true; prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
+    if (e.touches.length === 1) {
+      isDragging = true;
+      prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isDragging = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinchDist = Math.hypot(dx, dy);
+    }
   });
   container.addEventListener('touchmove', e => {
-    if (!isDragging || e.touches.length !== 1) return;
     e.preventDefault();
+    if (e.touches.length === 2) {
+      // Pinch-to-zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (lastPinchDist > 0) {
+        const delta = lastPinchDist - dist;
+        if (insideView) {
+          camera.fov = Math.max(20, Math.min(110, camera.fov + delta * 0.15));
+          camera.updateProjectionMatrix();
+        } else {
+          spherical.radius = Math.max(1.2, Math.min(7, spherical.radius + delta * 0.012));
+          updateCamera();
+        }
+      }
+      lastPinchDist = dist;
+      return;
+    }
+    if (!isDragging || e.touches.length !== 1) return;
+    const sensitivity = 0.008; // higher than mouse for finger-sized movements
     const dTheta = insideView
-      ?  (e.touches[0].clientX - prevMouse.x) * 0.005
-      : -(e.touches[0].clientX - prevMouse.x) * 0.005;
+      ?  (e.touches[0].clientX - prevMouse.x) * sensitivity
+      : -(e.touches[0].clientX - prevMouse.x) * sensitivity;
     spherical.theta += dTheta;
     const phiMin = insideView ? 0.05 : 0.2;
     const phiMax = insideView ? 1.55 : 1.5;
-    spherical.phi = Math.max(phiMin, Math.min(phiMax, spherical.phi + (e.touches[0].clientY - prevMouse.y) * 0.005));
+    spherical.phi = Math.max(phiMin, Math.min(phiMax, spherical.phi + (e.touches[0].clientY - prevMouse.y) * sensitivity));
     prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     updateCamera();
   }, { passive: false });
-  container.addEventListener('touchend', () => { isDragging = false; });
+  container.addEventListener('touchend', () => { isDragging = false; lastPinchDist = 0; });
 
   // Zoom buttons
   document.getElementById('dome-zoom-in')?.addEventListener('click', () => {
@@ -427,13 +461,13 @@ function attachControls(container) {
     }
   });
 
-  window.addEventListener('resize', () => {
+  window.addEventListener('resize', debounce(() => {
     const w = container.clientWidth;
     const h = container.clientHeight;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
-  });
+  }, 150));
 }
 
 // ── Public: one-time init ─────────────────────────────────────
@@ -547,7 +581,7 @@ export function renderDome(state) {
   // Update standstill legend to show transit altitudes at this latitude
   const standstillLabel = document.getElementById('dome-standstill-label');
   if (standstillLabel) {
-    const alts = [MAJOR_STANDSTILL, MINOR_STANDSTILL, -MINOR_STANDSTILL, -MAJOR_STANDSTILL]
+    const alts = [MAJOR_STANDSTILL_DEG, MINOR_STANDSTILL_DEG, -MINOR_STANDSTILL_DEG, -MAJOR_STANDSTILL_DEG]
       .map(dec => toDeg(altitude(dec, 0, lat_rad)))
       .filter(a => a > 0.5);
     if (alts.length >= 2) {

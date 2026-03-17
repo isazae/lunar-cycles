@@ -9,6 +9,11 @@ import {
 const MARGIN = { top: 36, right: 20, bottom: 48, left: 20 };
 const DPR    = window.devicePixelRatio || 1;
 
+function debounce(fn, ms) {
+  let id;
+  return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
+}
+
 let totalDays    = 91;  // matches the active range button default
 let currentState = null;
 let dims         = null;
@@ -45,7 +50,11 @@ function buildWaves(state) {
   // Moving south (first half, 0→T/2):  offset = halfCyclePos + T/4
   // Moving north (second half, T/2→T): offset = T*1.25 - halfCyclePos
   //   (mirrors: at MaxSouth halfCyclePos=T/2 → T*1.25-T/2=T*0.75, at MaxNorth→T*1.25)
-  const clampedDec   = Math.max(-maxDec, Math.min(maxDec, decNow));
+  let clampedDec = decNow;
+  if (Math.abs(decNow) > maxDec) {
+    console.warn(`[waves] Moon declination ${decNow.toFixed(2)}° exceeds expected amplitude ±${maxDec.toFixed(2)}° — clamping`);
+    clampedDec = Math.max(-maxDec, Math.min(maxDec, decNow));
+  }
   const halfCyclePos = (TROPICAL / (2 * Math.PI)) * Math.acos(clampedDec / maxDec); // 0..TROPICAL/2
   const tropicalOffset = movingSouth
     ? halfCyclePos + TROPICAL / 4
@@ -328,7 +337,7 @@ export function initWaves() {
 
   attachTooltip(canvas, tooltip);
   attachRangeButtons(canvas);
-  window.addEventListener('resize', () => {
+  window.addEventListener('resize', debounce(() => {
     if (currentState) dims = draw(canvas, currentState);
-  });
+  }, 150));
 }

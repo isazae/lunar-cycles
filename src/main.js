@@ -5,6 +5,13 @@ import { renderWaves, initWaves } from './waves.js';
 import { renderDome, initDome } from './dome.js';
 import { renderDayChart, initDayChart } from './daychart.js';
 import { renderTimeline, initTimeline } from './timeline.js';
+import { renderMoonGrade, initMoonGrade } from './moongrade.js';
+
+// ── Debounce helper ─────────────────────────────────────────
+function debounce(fn, ms) {
+  let id;
+  return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
+}
 
 // ── App state ─────────────────────────────────────────────────
 // This object is the single source of truth for the whole app.
@@ -38,6 +45,7 @@ locationInput.value = state.locationName;
 // Called whenever date or location changes.
 function onStateChange() {
   renderBars(state);
+  renderMoonGrade(state);
   renderTimeline(state);
   renderDayChart(state);
   renderWaves(state);
@@ -125,6 +133,7 @@ initWaves();
 initDome();
 initDayChart();
 initTimeline();
+initMoonGrade();
 requestAnimationFrame(() => onStateChange());
 
 // ── Service Worker registration (PWA offline support) ─────────

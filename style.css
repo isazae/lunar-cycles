@@ -269,82 +269,28 @@ main {
 
 /* ── Bar ───────────────────────────────────────────────────── */
 .bar-container {
-  position: relative;
-  width: 100%;
-  height: 44px;
-  margin-top: 1.2rem;   /* headroom for the label that floats above the container */
+  margin-top: 0.6rem;
   margin-bottom: 0.4rem;
 }
 
 .bar-track {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 100%;
-  height: 5px;
-  border-radius: 3px;
+  height: 4px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: 3px;
-  transition: width 1.2s ease-out;
+  border-radius: 2px;
+  transition: width 0.8s ease-out;
 }
 
-.bar-tick {
-  position: absolute;
-  top: 50%;
-  width: 1px;
-  height: 13px;
-  transform: translate(-50%, -50%);
-  background: rgba(255 255 255 / 0.07);
-}
-
-.bar-marker {
-  position: absolute;
-  top: 50%;
-  width: 2px;
-  height: 22px;
-  border-radius: 1px;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  transition: left 1.2s ease-out;
-}
-
-/* Small downward-pointing triangle at the top of the marker line */
-.bar-marker::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid currentColor;
-}
-
-.bar-marker-label {
-  position: absolute;
-  /* Anchor the label's bottom edge above the ▼ triangle tip.
-     Marker is centred at 50%; its visual top is 50% - 11px (transform offset).
-     Triangle sits 6px above that + 5px tall → triangle top at 50% - 17px.
-     bottom: calc(50% + 20px) puts label-bottom at 50% - 22px (3 px clear gap). */
-  bottom: calc(50% + 20px);
-  top: auto;
-  transform: translateX(-50%);
-  font-size: 0.6rem;
+.bar-value {
+  display: block;
+  font-size: 0.65rem;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  z-index: 3;
-  transition: left 1.2s ease-out;
-}
-
-@keyframes bar-pulse {
-  0%, 100% { opacity: 0.35; transform: translate(-50%, -50%) scale(1); }
-  50%       { opacity: 0.6;  transform: translate(-50%, -50%) scale(1.15); }
+  margin-bottom: 0.3rem;
 }
 
 .bar-end-labels {
@@ -356,21 +302,113 @@ main {
   opacity: 0.6;
 }
 
+/* ── Moon grade ───────────────────────────────────────────── */
+.moon-grade {
+  margin-bottom: 2rem;
+}
+
+.grade-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.grade-composite {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+}
+
+#grade-score {
+  font-family: var(--font-heading);
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.grade-max {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.grade-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.grade-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 28px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.grade-bar-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.grade-bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(240 216 144 / 0.1);
+  overflow: hidden;
+}
+
+.grade-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  background: rgba(240 216 144 / 0.5);
+  transition: width 0.8s ease-out;
+}
+
+#grade-duration .grade-bar-track { background: rgba(106 172 224 / 0.1); }
+#grade-duration .grade-bar-fill  { background: rgba(106 172 224 / 0.5); }
+#grade-duration .grade-bar-value { color: var(--blue); }
+
+#grade-altitude .grade-bar-track { background: rgba(184 130 200 / 0.1); }
+#grade-altitude .grade-bar-fill  { background: rgba(184 130 200 / 0.5); }
+#grade-altitude .grade-bar-value { color: var(--purple); }
+
+.grade-bar-value {
+  font-size: 0.65rem;
+  color: var(--gold);
+  text-align: right;
+}
+
+.gradechart-container {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(13,18,37,0.8) 0%, rgba(10,14,26,0.95) 100%);
+  border: 1px solid rgba(255 255 255 / 0.06);
+  border-radius: 4px;
+  padding: 1.5rem 1rem 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+#gradechart-canvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+}
+
 /* ── Cycle colour skins ────────────────────────────────────── */
-.synodic .bar-track        { background: rgba(240 216 144 / 0.1); }
-.synodic .bar-fill         { background: linear-gradient(90deg, rgba(240 216 144 / 0.35), rgba(240 216 144 / 0.55)); }
-.synodic .bar-marker       { background: var(--gold); color: var(--gold); }
-.synodic .bar-marker-label { color: var(--gold); }
+.synodic .bar-track { background: rgba(240 216 144 / 0.1); }
+.synodic .bar-fill  { background: rgba(240 216 144 / 0.5); }
+.synodic .bar-value { color: var(--gold); }
 
-.tropical .bar-track        { background: rgba(106 170 206 / 0.1); }
-.tropical .bar-fill         { background: linear-gradient(90deg, rgba(106 170 206 / 0.35), rgba(106 170 206 / 0.55)); }
-.tropical .bar-marker       { background: var(--blue); color: var(--blue); }
-.tropical .bar-marker-label { color: var(--blue); }
+.tropical .bar-track { background: rgba(106 170 206 / 0.1); }
+.tropical .bar-fill  { background: rgba(106 170 206 / 0.5); }
+.tropical .bar-value { color: var(--blue); }
 
-.nodal .bar-track        { background: rgba(184 130 200 / 0.1); }
-.nodal .bar-fill         { background: linear-gradient(90deg, rgba(184 130 200 / 0.3), rgba(184 130 200 / 0.5)); }
-.nodal .bar-marker       { background: var(--purple); color: var(--purple); }
-.nodal .bar-marker-label { color: var(--purple); }
+.nodal .bar-track { background: rgba(184 130 200 / 0.1); }
+.nodal .bar-fill  { background: rgba(184 130 200 / 0.5); }
+.nodal .bar-value { color: var(--purple); }
 
 /* ── 48-hour timeline strip ─────────────────────────────────── */
 .timeline-container {

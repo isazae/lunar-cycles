@@ -6,9 +6,14 @@
 //  29 days  — 29-day window with today at centre (≈ synodic month)
 
 import SunCalc from 'suncalc';
-import { MS_PER_DAY, stdMidnight, MONTHS } from './astronomy.js';
+import { MS_PER_DAY, MAJOR_STANDSTILL_DEG, MINOR_STANDSTILL_DEG, stdOffsetMs, stdMidnight, MONTHS } from './astronomy.js';
 
 const DPR = window.devicePixelRatio || 1;
+
+function debounce(fn, ms) {
+  let id;
+  return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
+}
 
 // ── Layout constants ──────────────────────────────────────────
 const STRIP_TOP    = 18;  // px above strip (day labels)
@@ -20,8 +25,8 @@ const CANVAS_H     = STRIP_TOP + STRIP_H + STRIP_BOTTOM;
 const SUN_DEC_MAX =  23.44;
 const SUN_DEC_MIN = -23.44;
 // Moon declination extremes at major standstill (degrees)
-const MOON_DEC_MAX =  28.5;
-const MOON_DEC_MIN = -28.5;
+const MOON_DEC_MAX =  MAJOR_STANDSTILL_DEG;
+const MOON_DEC_MIN = -MAJOR_STANDSTILL_DEG;
 
 // Fraction of strip height a body's upper transit reaches from the baseline.
 function culminationAltFrac(decDeg, latDeg) {
@@ -38,13 +43,16 @@ let currentDays  = 3;   // active range: 3 | 15 | 29
 
 // ── Compute time window from a reference date + days setting ──
 // Today's date column is always centred in the window.
-function getWindow(ref, days) {
-  const y         = ref.getFullYear(), mo = ref.getMonth(), d = ref.getDate();
+// Uses the viewed location's longitude to derive calendar dates.
+function getWindow(ref, days, lon) {
+  // Derive calendar date at the viewed location
+  const local     = new Date(ref.getTime() - stdOffsetMs(lon));
+  const y         = local.getUTCFullYear(), mo = local.getUTCMonth(), d = local.getUTCDate();
   const half      = Math.floor(days / 2);
-  const t0        = stdMidnight(y, mo, d - half);
-  const tToday    = stdMidnight(y, mo, d);
-  const tTomorrow = stdMidnight(y, mo, d + 1);
-  const t2        = stdMidnight(y, mo, d - half + days);
+  const t0        = stdMidnight(y, mo, d - half, lon);
+  const tToday    = stdMidnight(y, mo, d, lon);
+  const tTomorrow = stdMidnight(y, mo, d + 1, lon);
+  const t2        = stdMidnight(y, mo, d - half + days, lon);
   return { t0, tToday, tTomorrow, t2 };
 }
 
@@ -131,7 +139,7 @@ function draw(canvas, state, days) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.clearRect(0, 0, w, CANVAS_H);
 
-  const { t0, tToday, tTomorrow, t2 } = getWindow(state.date, days);
+  const { t0, tToday, tTomorrow, t2 } = getWindow(state.date, days, state.lon);
   const numDays = Math.round((t2 - t0) / MS_PER_DAY);
   const sy      = STRIP_TOP;
   const toX     = t => ((t - t0) / (t2 - t0)) * w;
@@ -329,7 +337,7 @@ export function initTimeline() {
       return;
     }
 
-    const { t0, t2 } = getWindow(currentState.date, currentDays);
+    const { t0, t2 } = getWindow(currentState.date, currentDays, currentState.lon);
     const t = new Date(t0.getTime() + (mouseX / rect.width) * (t2 - t0));
 
     const sunAlt  = SunCalc.getPosition(t, currentState.lat, currentState.lon).altitude;
@@ -375,7 +383,7 @@ export function initTimeline() {
     });
   });
 
-  window.addEventListener('resize', () => {
+  window.addEventListener('resize', debounce(() => {
     if (currentState) draw(canvas, currentState, currentDays);
-  });
+  }, 150));
 }

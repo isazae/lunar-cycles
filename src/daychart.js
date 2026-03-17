@@ -1,7 +1,7 @@
 // src/daychart.js — Sun & Moon Rise/Set chart
 
 import SunCalc from 'suncalc';
-import { MS_PER_DAY, STD_OFFSET_MS, stdMidnight, MONTHS } from './astronomy.js';
+import { MS_PER_DAY, stdOffsetMs, stdMidnight, MONTHS } from './astronomy.js';
 
 let totalDays = 91;   // current span — updated by range buttons
 
@@ -12,6 +12,11 @@ const MIN_DAYS = 91;
 const MARGIN = { top: 44, right: 16, bottom: 52, left: 52 };
 const DPR    = window.devicePixelRatio || 1;
 
+function debounce(fn, ms) {
+  let id;
+  return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
+}
+
 let currentState = null;
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -19,9 +24,13 @@ let currentState = null;
 // Fraction of the standard-time calendar day that a Date falls on.
 // 0 = standard midnight, 0.5 = standard noon, 1 = next standard midnight.
 // Always divides by MS_PER_DAY — no 23 h / 25 h DST distortion.
-function dayFrac(date) {
-  const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
-  return (date - stdMidnight(y, m, d)) / MS_PER_DAY;
+// Uses the viewed location's longitude to derive the timezone offset.
+function dayFrac(date, lon) {
+  const offset = stdOffsetMs(lon);
+  // Derive the calendar date at the viewed location
+  const local  = new Date(date.getTime() - offset);
+  const y = local.getUTCFullYear(), m = local.getUTCMonth(), d = local.getUTCDate();
+  return (date - stdMidnight(y, m, d, lon)) / MS_PER_DAY;
 }
 
 // Internal helper: run SunCalc for the two UTC dates that straddle a standard-time
@@ -215,7 +224,9 @@ function draw(canvas, state) {
     const daysOff  = i - half;
     const dayDate  = new Date(state.date.getTime() + daysOff * MS_PER_DAY);
     // Standard-time midnight — every column is exactly 24 h, no DST distortion.
-    const dayStart = stdMidnight(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+    // Derive calendar date at the viewed location (not the browser's timezone).
+    const localDate = new Date(dayDate.getTime() - stdOffsetMs(state.lon));
+    const dayStart = stdMidnight(localDate.getUTCFullYear(), localDate.getUTCMonth(), localDate.getUTCDate(), state.lon);
     const x        = colX(i);
 
     // Per-column background (slightly lighter than chart bg, contrasts with gap)
@@ -235,8 +246,8 @@ function draw(canvas, state) {
     const ss   = sunT.sunset;
 
     if (sr && ss) {
-      const srF = reframe(dayFrac(sr)); // sunrise in new coords (~0.75)
-      const ssF = reframe(dayFrac(ss)); // sunset  in new coords (~0.25)
+      const srF = reframe(dayFrac(sr, state.lon)); // sunrise in new coords (~0.75)
+      const ssF = reframe(dayFrac(ss, state.lon)); // sunset  in new coords (~0.25)
 
       if (srF > ssF) {
         // Normal case — band wraps at noon boundary
@@ -416,7 +427,8 @@ function attachTooltip(canvas, tooltip) {
 
     const daysOff  = colIdx - Math.floor(totalDays / 2);
     const dayDate  = new Date(currentState.date.getTime() + daysOff * MS_PER_DAY);
-    const dayStart = stdMidnight(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+    const localDate = new Date(dayDate.getTime() - stdOffsetMs(currentState.lon));
+    const dayStart = stdMidnight(localDate.getUTCFullYear(), localDate.getUTCMonth(), localDate.getUTCDate(), currentState.lon);
     const sunNoon  = new Date(dayStart.getTime() + 12 * 3600000);
 
     const dateStr  = `${MONTHS[dayDate.getMonth()]} ${dayDate.getDate()}`;
@@ -481,7 +493,7 @@ export function initDayChart() {
     });
   });
 
-  window.addEventListener('resize', () => {
+  window.addEventListener('resize', debounce(() => {
     if (currentState) draw(canvas, currentState);
-  });
+  }, 150));
 }
