@@ -6,6 +6,7 @@ import { renderDome, initDome } from './dome.js';
 import { renderDayChart, initDayChart } from './daychart.js';
 import { renderTimeline, initTimeline } from './timeline.js';
 import { renderMoonGrade, initMoonGrade } from './moongrade.js';
+import { initLearn, pauseLearn, resumeLearn } from './learn.js';
 
 // ── Debounce helper ─────────────────────────────────────────
 function debounce(fn, ms) {
@@ -115,13 +116,31 @@ gpsBtn.addEventListener('click', () => {
   );
 });
 
-// ── Cycle info panel toggles ──────────────────────────────────
-// Each ⓘ button opens/closes the explanatory panel for its cycle.
-document.querySelectorAll('.cycle-info-btn').forEach(btn => {
+// ── Tab switching ─────────────────────────────────────────────
+let activeTab = 'observe';
+let learnInitialized = false;
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    const panel = btn.closest('.cycle').querySelector('.cycle-info-panel');
-    const isOpen = panel.classList.toggle('open');
-    btn.classList.toggle('open', isOpen);
+    const tab = btn.dataset.tab;
+    if (tab === activeTab) return;
+
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
+    activeTab = tab;
+
+    if (tab === 'learn') {
+      if (!learnInitialized) {
+        initLearn();
+        learnInitialized = true;
+      } else {
+        resumeLearn();
+      }
+    } else {
+      pauseLearn();
+      // Re-render observe tab (canvas sizes may have been 0 while hidden)
+      onStateChange();
+    }
   });
 });
 

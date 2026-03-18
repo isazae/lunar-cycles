@@ -27,6 +27,17 @@
       <p class="subtitle">The three rhythms that govern the Moon</p>
     </header>
 
+    <!-- Tab bar -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="observe">What you see</button>
+      <button class="tab-btn" data-tab="learn">How it works</button>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: What you see (current app)                        -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <div class="tab-content active" id="tab-observe">
+
     <section class="controls">
       <div class="controls-row">
         <div class="control-group">
@@ -60,11 +71,7 @@
           <div class="cycle synodic">
             <div class="cycle-header">
               <span class="cycle-name">Synodic Month</span>
-              <button class="cycle-info-btn" aria-label="About the synodic month">ⓘ</button>
               <span class="cycle-period">29.53 days · phase</span>
-            </div>
-            <div class="cycle-info-panel">
-              <p>The synodic month tracks the Moon's phases — the familiar cycle from New Moon to Full Moon and back again. At the New Moon, the Sun and Moon rise and set together, so the Moon is invisible in the daytime sky. As the Moon grows fuller, it rises later each day relative to the Sun — until at the Full Moon, it rises right at sunset, illuminating the entire night. After the Full Moon, the Moon continues pulling ahead — rising deeper into the night — until it slips back into the Sun's glow and the cycle begins again.</p>
             </div>
             <div class="bar-container" id="bar-synodic"></div>
             <div class="bar-end-labels">
@@ -77,11 +84,7 @@
           <div class="cycle tropical">
             <div class="cycle-header">
               <span class="cycle-name">Tropical Month</span>
-              <button class="cycle-info-btn" aria-label="About the tropical month">ⓘ</button>
               <span class="cycle-period">27.32 days · declination</span>
-            </div>
-            <div class="cycle-info-panel">
-              <p>The tropical month tracks how high the Moon climbs in the sky — and how wide an arc it sweeps from the horizon where it rises to where it sets. At the low point of this cycle, the Moon hugs the horizon, rising and setting at points close together, tracing a shallow path overhead. At the high point, the Moon rises and sets at its most extreme positions on the horizon, sweeping a grand arc high across the sky. The degree shown on this graph tells you the maximum altitude the Moon will reach above the horizon on that day — its highest point in the sky.</p>
             </div>
             <div class="bar-container" id="bar-tropical"></div>
             <div class="bar-end-labels">
@@ -94,11 +97,7 @@
           <div class="cycle nodal">
             <div class="cycle-header">
               <span class="cycle-name">Nodal Cycle</span>
-              <button class="cycle-info-btn" aria-label="About the nodal cycle">ⓘ</button>
               <span class="cycle-period">18.61 years · standstill amplitude</span>
-            </div>
-            <div class="cycle-info-panel">
-              <p>The nodal cycle is the longest of the three, and it governs the range of the tropical month itself. Over 18.6 years, the Moon's path slowly shifts, causing the gap between the high and low points of the tropical month to expand and contract. At its minimum, the Moon's arcs cluster into a narrow band of about 37° — the Moon never strays very high or very low. At its maximum, the band expands to about 57°, and the Moon reaches dramatic extremes — rising and setting at its most northerly and southerly points on the horizon, and climbing very high or skimming very low across the sky. This peak is known as a Major Lunar Standstill.</p>
             </div>
             <div class="bar-container" id="bar-nodal"></div>
             <div class="bar-end-labels">
@@ -110,7 +109,6 @@
 
         </div>
 
-        </div>
       </section>
 
       <!-- ── Overlapping Waves ── -->
@@ -291,6 +289,76 @@
       </section>
 
     </main>
+
+    </div><!-- /tab-observe -->
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: How it works (educational)                        -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-learn">
+      <main class="learn-main">
+
+        <!-- ── Synodic Month ── -->
+        <section class="learn-cycle">
+          <h2 class="viz-title learn-title synodic-accent">The Synodic Month</h2>
+          <p class="learn-period">29.53 days · phase</p>
+          <div class="mini-dome-container" id="mini-dome-synodic"></div>
+          <div class="learn-text">
+            <p>The synodic month tracks the Moon's phases — the familiar cycle from New Moon to Full Moon and back again. At the New Moon, the Sun and Moon rise and set together, so the Moon is invisible in the daytime sky. As the Moon grows fuller, it rises later each day relative to the Sun — until at the Full Moon, it rises right at sunset, illuminating the entire night. After the Full Moon, the Moon continues pulling ahead — rising deeper into the night — until it slips back into the Sun's glow and the cycle begins again.</p>
+          </div>
+        </section>
+
+        <!-- ── Tropical Month ── -->
+        <section class="learn-cycle">
+          <h2 class="viz-title learn-title tropical-accent">The Tropical Month</h2>
+          <p class="learn-period">27.32 days · declination</p>
+          <div class="mini-dome-container" id="mini-dome-tropical"></div>
+          <div class="learn-text">
+            <p>The tropical month tracks how high the Moon climbs in the sky — and how wide an arc it sweeps from the horizon where it rises to where it sets. At the low point of this cycle, the Moon hugs the horizon, rising and setting at points close together, tracing a shallow path overhead. At the high point, the Moon rises and sets at its most extreme positions on the horizon, sweeping a grand arc high across the sky. The degree shown on this graph tells you the maximum altitude the Moon will reach above the horizon on that day — its highest point in the sky.</p>
+          </div>
+        </section>
+
+        <!-- ── Nodal Cycle ── -->
+        <section class="learn-cycle">
+          <h2 class="viz-title learn-title nodal-accent">The Nodal Cycle</h2>
+          <p class="learn-period">18.61 years · standstill amplitude</p>
+          <div class="mini-dome-container" id="mini-dome-nodal"></div>
+          <div class="learn-text">
+            <p>The nodal cycle is the longest of the three, and it governs the range of the tropical month itself. Over 18.6 years, the Moon's path slowly shifts, causing the gap between the high and low points of the tropical month to expand and contract. At its minimum, the Moon's arcs cluster into a narrow band of about 37° — the Moon never strays very high or very low. At its maximum, the band expands to about 57°, and the Moon reaches dramatic extremes — rising and setting at its most northerly and southerly points on the horizon, and climbing very high or skimming very low across the sky. This peak is known as a Major Lunar Standstill.</p>
+          </div>
+        </section>
+
+        <!-- ── Solar Solstices & Equinoxes ── -->
+        <section class="learn-topic">
+          <h2 class="viz-title">Solar Solstices & Equinoxes</h2>
+          <div class="learn-text">
+            <p>The Earth's axis tilts 23.4° from vertical. As the Earth orbits the Sun over a year, this tilt causes the Sun's apparent path across the sky to rise and fall — just like the Moon's tropical month, but on a yearly cycle. At the summer solstice the Sun reaches its highest arc, giving the longest day. At the winter solstice it traces its lowest path and the day is shortest. The equinoxes mark the midpoints — when the Sun crosses the celestial equator and day and night are roughly equal.</p>
+            <p>The Moon's tropical month is the lunar equivalent of this same motion. The Moon's declination oscillates north and south every 27.3 days, causing it to climb high and dip low in the sky within a single month — a rhythm the Sun takes an entire year to complete.</p>
+          </div>
+        </section>
+
+        <!-- ── Lunar Standstills ── -->
+        <section class="learn-topic">
+          <h2 class="viz-title">Lunar Standstills</h2>
+          <div class="learn-text">
+            <p>A lunar standstill is the Moon's equivalent of a solstice — the moment when the Moon reaches its most extreme position on the horizon. But while the Sun's extremes repeat every year, the Moon's extremes follow the 18.6-year nodal cycle.</p>
+            <p>At a Major Lunar Standstill, the Moon rises and sets at points further north and south along the horizon than at any other time. Its maximum altitude can exceed the Sun's summer solstice height, and its minimum can dip below the Sun's winter solstice low. The most recent major standstill peaked in January 2025.</p>
+            <p>At a Minor Lunar Standstill — roughly 9.3 years later — the Moon's range contracts. It never rises or sets as far north or south, and its arcs stay closer to the celestial equator. Ancient sites like Stonehenge and Chimney Rock in Colorado are aligned to mark these extreme positions — evidence that people tracked this slow rhythm thousands of years ago.</p>
+          </div>
+        </section>
+
+        <!-- ── Eclipses ── -->
+        <section class="learn-topic">
+          <h2 class="viz-title">Eclipses</h2>
+          <div class="learn-text">
+            <p>Eclipses happen when the Sun, Moon, and Earth line up — but if the Moon orbits Earth every month, why don't we get eclipses every month? The answer lies in the Moon's orbital plane. The Moon's orbit is tilted about 5° relative to Earth's orbit around the Sun. Most months, the Moon passes slightly above or below the Sun's path and no eclipse occurs.</p>
+            <p>The two points where the Moon's orbit crosses the Sun's path are called nodes. Eclipses can only happen when a New Moon (solar eclipse) or Full Moon (lunar eclipse) occurs near a node. These windows — called eclipse seasons — last about 34 days and recur roughly every 6 months as the nodes slowly rotate around Earth's orbit.</p>
+            <p>That rotation of the nodes is exactly the nodal cycle. Over 18.6 years, the nodes complete one full circuit, shifting the timing and geometry of eclipse seasons. This is why eclipse patterns repeat on an 18-year rhythm known as the Saros cycle — a period closely related to the nodal cycle that ancient Babylonian astronomers used to predict eclipses.</p>
+          </div>
+        </section>
+
+      </main>
+    </div><!-- /tab-learn -->
 
     <script type="module" src="src/main.js"></script>
   </body>

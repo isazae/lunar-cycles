@@ -5,11 +5,11 @@ import SunCalc from 'suncalc';
 import { MS_PER_DAY, MAJOR_STANDSTILL_DEG, MINOR_STANDSTILL_DEG, getMoonDeclinationDeg, moonDeclinationAmplitude } from './astronomy.js';
 
 // ── Constants ─────────────────────────────────────────────────
-const DOME_RADIUS = 1.8;
+export const DOME_RADIUS = 1.8;
 
 // ── Astronomy helpers ─────────────────────────────────────────
-function toRad(deg) { return deg * Math.PI / 180; }
-function toDeg(rad) { return rad * 180 / Math.PI; }
+export function toRad(deg) { return deg * Math.PI / 180; }
+export function toDeg(rad) { return rad * 180 / Math.PI; }
 
 function debounce(fn, ms) {
   let id;
@@ -17,7 +17,7 @@ function debounce(fn, ms) {
 }
 
 /** Altitude of an object at declination dec (deg) and hour angle ha (rad), from latitude lat (rad) */
-function altitude(dec_deg, ha_rad, lat_rad) {
+export function altitude(dec_deg, ha_rad, lat_rad) {
   const dec = toRad(dec_deg);
   return Math.asin(
     Math.sin(lat_rad) * Math.sin(dec) +
@@ -26,7 +26,7 @@ function altitude(dec_deg, ha_rad, lat_rad) {
 }
 
 /** Azimuth of that same object */
-function azimuth(dec_deg, ha_rad, lat_rad) {
+export function azimuth(dec_deg, ha_rad, lat_rad) {
   const dec = toRad(dec_deg);
   const alt = altitude(dec_deg, ha_rad, lat_rad);
   const cosAz = (Math.sin(dec) - Math.sin(lat_rad) * Math.sin(alt)) /
@@ -40,7 +40,7 @@ function azimuth(dec_deg, ha_rad, lat_rad) {
 }
 
 /** Convert altitude/azimuth → 3-D position on the dome surface */
-function altAzTo3D(alt_rad, az_rad, radius) {
+export function altAzTo3D(alt_rad, az_rad, radius) {
   const r = radius * Math.cos(alt_rad);
   const x = r * Math.sin(az_rad);
   const z = r * Math.cos(az_rad);
@@ -49,7 +49,7 @@ function altAzTo3D(alt_rad, az_rad, radius) {
 }
 
 /** Build an array of 3-D points tracing the arc of a given declination */
-function lunarArcPoints(dec_deg, lat_rad, radius, numPoints = 300) {
+export function lunarArcPoints(dec_deg, lat_rad, radius, numPoints = 300) {
   const points = [];
   for (let i = 0; i <= numPoints; i++) {
     const ha  = -Math.PI + (2 * Math.PI * i / numPoints);
@@ -64,7 +64,7 @@ function lunarArcPoints(dec_deg, lat_rad, radius, numPoints = 300) {
 // getMoonDeclinationDeg() and moonDeclinationAmplitude() imported from astronomy.js
 
 // ── Text sprite helper ────────────────────────────────────────
-function makeTextSprite(text, color, fontSize = 42) {
+export function makeTextSprite(text, color, fontSize = 42) {
   const canvas = document.createElement('canvas');
   canvas.width  = 128;
   canvas.height = 128;
@@ -82,7 +82,7 @@ function makeTextSprite(text, color, fontSize = 42) {
 }
 
 // ── Arc line helper ───────────────────────────────────────────
-function createArc(dec_deg, lat_rad, color, opacity) {
+export function createArc(dec_deg, lat_rad, color, opacity) {
   const points = lunarArcPoints(dec_deg, lat_rad, DOME_RADIUS - 0.01);
   if (points.length < 2) return null;
   const geo = new THREE.BufferGeometry().setFromPoints(points);
